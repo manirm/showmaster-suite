@@ -5,12 +5,17 @@ from pathlib import Path
 import re
 import time
 import signal
+import threading
+import mss
+import cv2
+import numpy as np
 from browserpilot.core import BrowserPilot
 
 class Showmaster:
     def __init__(self, filepath):
         self.filepath = Path(filepath)
-        self.record_process = None
+        self.record_thread = None
+        self.recording = False
         self.bp = None
 
     def init(self, title):
@@ -109,39 +114,46 @@ class Showmaster:
             return msg
 
     def start_record(self, filename=None):
-        if self.record_process:
+        if self.recording:
             return "Recording already in progress."
         
         if not filename:
-            filename = f"record_{int(time.time())}.mov"
+            filename = f"record_{int(time.time())}.mp4"
         
         dest_path = self.filepath.parent / filename
-        # On Mac, screencapture -v [file] starts recording.
-        # Note: This might record the full screen.
-        try:
-            self.record_process = subprocess.Popen(
-                ["/usr/sbin/screencapture", "-v", str(dest_path)],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
-            self.current_record_file = filename
-            return f"Recording started: {filename}"
-        except Exception as e:
-            return f"Error starting recording: {e}"
+        self.current_record_file = filename
+        self.recording = True
+        
+        def _record():
+            with mss.mss() as sct:
+                # Capture the primary monitor
+                monitor = sct.monitors[1]
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                out = cv2.VideoWriter(str(dest_path), fourcc, 10.0, (monitor["width"], monitor["height"]))
+                
+                while self.recording:
+                    img = sct.grab(monitor)
+                    frame = np.array(img)
+                    # Convert BGRA to BGR
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
+                    out.write(frame)
+                    time.sleep(0.1) # ~10 FPS
+                
+                out.release()
+
+        self.record_thread = threading.Thread(target=_record, daemon=True)
+        self.record_thread.start()
+        return f"Recording started: {filename}"
 
     def stop_record(self):
-        if not self.record_process:
+        if not self.recording:
             return "No recording in progress."
         
-        try:
-            # screencapture -v responds to SIGTERM by finishing the file
-            self.record_process.terminate()
-            self.record_process.wait(timeout=5)
-        except Exception:
-            self.record_process.kill()
+        self.recording = False
+        if self.record_thread:
+            self.record_thread.join(timeout=2)
         
-        self.record_process = None
-        filename = getattr(self, "current_record_file", "recording.mov")
+        filename = getattr(self, "current_record_file", "recording.mp4")
         
         section = f"### Video Recording: [{filename}]({filename})\n\n*(Video captured)*\n\n"
         with self.filepath.open("a") as f:

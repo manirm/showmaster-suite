@@ -14,6 +14,10 @@ dependencies = [
     "wxpython>=4.2.5",
     "httpx>=0.27.0",
     "ollama>=0.2.1",
+    "mss",
+    "opencv-python",
+    "numpy",
+    "nuitka",
 ]
 
 [project.scripts]
