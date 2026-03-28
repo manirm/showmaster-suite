@@ -15,6 +15,23 @@ class ShowmasterFrame(wx.Frame):
         self.init_ui()
         self.update_preview()
 
+    def get_resource_path(self, relative_path):
+        import sys
+        # Nuitka stores resources alongside the binary or in the bundle
+        base_path = Path(sys.executable).parent
+        if sys.platform == "darwin" and ".app/Contents/MacOS" in str(base_path):
+            # Inside macOS app bundle
+            base_path = base_path.parent.parent / "Resources"
+        
+        # Check standard dev path first, then resource path
+        dev_path = Path(__file__).parent.parent.parent / relative_path
+        if dev_path.exists():
+            return dev_path
+        
+        # In Nuitka standalone, files are often in the same dir as the exe
+        standalone_path = base_path / relative_path
+        return standalone_path
+
     def init_icon(self):
         wx.InitAllImageHandlers()
         icon_path = Path(__file__).parent / "assets" / "icon.png"
@@ -275,12 +292,26 @@ class ShowmasterFrame(wx.Frame):
         self.update_preview()
 
     def on_about(self, event):
-        wx.MessageBox("Showmaster v0.2.0\nA comprehensive documentation and demo tool.", "About", wx.OK | wx.ICON_INFORMATION)
+        about_text = (
+            "Showmaster v0.2.0\n"
+            "A comprehensive documentation and demo tool.\n\n"
+            "By Mohammed Maniruzzaman, PhD\n"
+            "License: MIT\n\n"
+            "Third-Party Components:\n"
+            "- wxPython (LGPL)\n"
+            "- Playwright (Apache 2.0)\n"
+            "- markdown2 (MIT)\n"
+            "- httpx (BSD 3-Clause)\n"
+            "- mss (MIT)\n"
+            "- opencv-python (Apache 2.0)\n"
+            "- numpy (BSD 3-Clause)"
+        )
+        wx.MessageBox(about_text, "About Showmaster", wx.OK | wx.ICON_INFORMATION)
 
     def on_guide(self, event):
         import subprocess
         import sys
-        guide_path = Path(__file__).parent.parent.parent / "USER_GUIDE.md"
+        guide_path = self.get_resource_path("USER_GUIDE.md")
         if guide_path.exists():
             if sys.platform == "darwin":
                 subprocess.run(["open", str(guide_path)])

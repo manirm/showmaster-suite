@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026
+Copyright (c) 2026, Mohammed Maniruzzaman, PhD
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +19,20 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+### Third-Party Components & Licenses
+
+This software incorporates the following third-party components under their respective licenses:
+
+1. **wxPython**: LGPL License (with permissive exception). Used for GUI framework.
+2. **Playwright**: Apache 2.0 License. Used for browser automation.
+3. **markdown2**: MIT License. Used for Markdown to HTML conversion.
+4. **httpx**: BSD 3-Clause License. Used for asynchronous HTTP requests.
+5. **ollama**: MIT License. Used for AI backend integration.
+6. **mss**: MIT License. Used for cross-platform screen capture.
+7. **opencv-python**: Apache 2.0 License. Used for video encoding.
+8. **numpy**: BSD 3-Clause License. Used for image array manipulation.
+9. **imageio**: BSD 2-Clause License. Used for icon format conversion.
+10. **Nuitka**: Apache 2.0 License. Used for native compilation.
