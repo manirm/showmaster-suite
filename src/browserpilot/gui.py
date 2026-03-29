@@ -19,19 +19,24 @@ class BrowserPilotFrame(wx.Frame):
 
     def get_resource_path(self, relative_path):
         import sys
-        # Nuitka stores resources alongside the binary or in the bundle
-        base_path = Path(sys.executable).parent
-        if sys.platform == "darwin" and ".app/Contents/MacOS" in str(base_path):
-            # Inside macOS app bundle
-            base_path = base_path.parent.parent / "Resources"
         
-        # Check standard dev path first, then resource path
+        # Check standard dev path first
         dev_path = Path(__file__).parent.parent.parent / relative_path
         if dev_path.exists():
             return dev_path
-        
-        # In Nuitka standalone, files are often in the same dir as the exe
+            
+        # In Nuitka standalone, files are typically in the same dir as the executable
+        base_path = Path(sys.executable).parent
         standalone_path = base_path / relative_path
+        if standalone_path.exists():
+            return standalone_path
+            
+        if sys.platform == "darwin" and ".app/Contents/MacOS" in str(base_path):
+            # Fallback for macOS app bundle if Nuitka put them in Resources
+            resource_path = base_path.parent.parent / "Resources" / relative_path
+            if resource_path.exists():
+                return resource_path
+                
         return standalone_path
 
     def init_icon(self):
