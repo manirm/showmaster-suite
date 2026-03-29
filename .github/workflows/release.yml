@@ -20,21 +20,27 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.12'
 
       - name: Install uv
-        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          version: "latest"
 
       - name: Install Ubuntu specific build libraries
         if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libgstreamer-gl1.0-0 freeglut3-dev libnotify-dev libsdl2-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev libnotify-dev libsdl2-dev freeglut3-dev
 
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --frozen
 
-      - name: Install macOS specific build tools
-        if: matrix.os == 'macos-latest'
-        run: brew install create-dmg
+      - name: Install Playwright Browsers
+        run: uv run playwright install --with-deps
+
+      # macOS DMG creation handles everything in build.py via hdiutil, no need for brew install create-dmg
 
       - name: Build with Nuitka
         run: uv run scripts/build.py
@@ -44,7 +50,8 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            dist/Showmaster*
-            dist/BrowserPilot*
+            dist/*.dmg
+            dist/*_bin.exe
+            dist/*_bin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
