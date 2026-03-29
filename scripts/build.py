@@ -52,18 +52,13 @@ def build_app(module_name, app_name, icon_path):
             if os.path.exists(dmg_path):
                 os.remove(dmg_path)
             
+            # Use native hdiutil to ensure headless and reliable DMG generation
             subprocess.run([
-                "create-dmg",
-                "--volname", app_name,
-                "--volicon", icon_path,
-                "--window-pos", "200", "120",
-                "--window-size", "600", "400",
-                "--icon-size", "100",
-                "--icon", f"{app_name}.app", "150", "190",
-                "--hide-extension", f"{app_name}.app",
-                "--app-drop-link", "450", "185",
-                dmg_path,
-                f"dist/{app_name}.app"
+                "hdiutil", "create",
+                "-volname", app_name,
+                "-srcfolder", f"dist/{app_name}.app",
+                "-ov", "-format", "UDZO",
+                dmg_path
             ], check=True)
             
     finally:
