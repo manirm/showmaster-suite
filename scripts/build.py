@@ -39,7 +39,6 @@ def build_app(module_name, app_name, icon_path):
         if sys.platform == "win32":
             cmd.extend([
                 f"--windows-icon-from-ico={icon_path}",
-                "--windows-uac-admin=none", # Ensures user-space execution without admin prompt
                 "--windows-console-mode=disable"
             ])
         
