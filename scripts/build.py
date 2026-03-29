@@ -15,27 +15,28 @@ def build_app(module_name, app_name, icon_path):
     try:
         cmd = [
             sys.executable, "-m", "nuitka",
-            "--onefile",
             "--enable-plugin=playwright",
-            f"--output-filename={app_name}",
+            f"--output-filename={app_name}_bin",
             "--output-dir=dist",
             # Include assets
             f"--include-data-dir=src/{module_name.split('.')[0]}/assets={module_name.replace('.', '/')}/assets",
             # Include root documentation
             "--include-data-files=LICENSE=LICENSE",
             "--include-data-files=USER_GUIDE.md=USER_GUIDE.md",
-            "--remove-output", # Remove intermediate .build folders
             temp_main
         ]
         
         if sys.platform == "darwin":
             cmd.extend([
+                "--standalone",
                 "--macos-create-app-bundle",
                 f"--macos-app-icon={icon_path}",
                 f"--macos-app-name={app_name}",
-                "--macos-app-create-dmg",
             ])
-        elif sys.platform == "win32":
+        else:
+            cmd.append("--onefile")
+            
+        if sys.platform == "win32":
             cmd.extend([
                 f"--windows-icon-from-ico={icon_path}",
                 "--windows-uac-admin=none", # Ensures user-space execution without admin prompt
@@ -43,6 +44,28 @@ def build_app(module_name, app_name, icon_path):
             ])
         
         subprocess.run(cmd, check=True)
+        
+        # Build DMG manually on macOS to avoid Nuitka packaging the .dist folder
+        if sys.platform == "darwin":
+            print(f"Creating macOS disk image for {app_name}...")
+            dmg_path = f"dist/{app_name}.dmg"
+            if os.path.exists(dmg_path):
+                os.remove(dmg_path)
+            
+            subprocess.run([
+                "create-dmg",
+                "--volname", app_name,
+                "--volicon", icon_path,
+                "--window-pos", "200", "120",
+                "--window-size", "600", "400",
+                "--icon-size", "100",
+                "--icon", f"{app_name}.app", "150", "190",
+                "--hide-extension", f"{app_name}.app",
+                "--app-drop-link", "450", "185",
+                dmg_path,
+                f"dist/{app_name}.app"
+            ], check=True)
+            
     finally:
         # Cleanup the temporary entry script
         if os.path.exists(temp_main):
