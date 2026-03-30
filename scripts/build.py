@@ -23,6 +23,7 @@ def build_app(module_name, app_name, icon_path):
             # Include root documentation
             "--include-data-files=LICENSE=LICENSE",
             "--include-data-files=USER_GUIDE.md=USER_GUIDE.md",
+            "--assume-yes-for-downloads",
             temp_main
         ]
         

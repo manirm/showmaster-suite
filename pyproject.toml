@@ -19,6 +19,7 @@ dependencies = [
     "numpy",
     "nuitka",
     "imageio",
+    "zstandard",
 ]
 
 [project.scripts]
