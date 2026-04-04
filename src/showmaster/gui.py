@@ -8,6 +8,7 @@ from pathlib import Path
 from showmaster.core import Showmaster
 from common.settings import (
     is_dark_mode, check_for_updates, load_settings, save_settings,
+    set_macos_app_name,
     CURRENT_VERSION,
 )
 
@@ -394,10 +395,43 @@ class ShowmasterFrame(wx.Frame):
         if self.filename.exists():
             content = self.filename.read_text()
             html = markdown2.markdown(content, extras=["tables", "fenced-code-blocks"])
+            # Inline images as base64 data URIs (macOS WebView blocks file://)
+            html = self._inline_images(html)
             custom_css = load_custom_css()
             css = custom_css or (DARK_CSS if self.dark else LIGHT_CSS)
             styled_html = f"<html><head><style>{css}</style></head><body>{html}</body></html>"
             self.browser.SetPage(styled_html, "")
+
+    def _inline_images(self, html):
+        """Replace relative <img src="..."> with base64 data URIs."""
+        import re
+        import base64
+        import mimetypes
+
+        base_dir = self.filename.absolute().parent
+
+        def _replace_img(match):
+            prefix = match.group(1)
+            src = match.group(2)
+            suffix = match.group(3)
+
+            # Skip if already a URL or data URI
+            if src.startswith(("http://", "https://", "data:")):
+                return match.group(0)
+
+            img_path = base_dir / src
+            if img_path.exists():
+                try:
+                    mime, _ = mimetypes.guess_type(str(img_path))
+                    if not mime:
+                        mime = "image/png"
+                    b64 = base64.b64encode(img_path.read_bytes()).decode()
+                    return f'{prefix}data:{mime};base64,{b64}{suffix}'
+                except Exception:
+                    pass
+            return match.group(0)
+
+        return re.sub(r'(<img\s[^>]*src=["\'])([^"\']+)(["\'])', _replace_img, html)
 
     # ── Event Handlers ────────────────────────────────────────────────
 
@@ -573,6 +607,7 @@ class ImageDropTarget(wx.FileDropTarget):
 
 
 def main():
+    set_macos_app_name("Showmaster")
     app = wx.App()
     wx.InitAllImageHandlers()
     app.SetAppName("Showmaster")

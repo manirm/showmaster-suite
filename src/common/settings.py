@@ -1,5 +1,57 @@
 import json
+import sys
+import ctypes
+import ctypes.util
 from pathlib import Path
+
+
+def set_macos_app_name(name):
+    """Set the macOS dock and menu bar app name (must be called before wx.App).
+
+    Uses ctypes to reach into the Objective-C runtime and set CFBundleName
+    in NSBundle.mainBundle().infoDictionary. This overrides the default
+    'python3' label that macOS shows for interpreter-launched apps.
+    """
+    if sys.platform != "darwin":
+        return
+    try:
+        objc = ctypes.cdll.LoadLibrary(ctypes.util.find_library("objc"))
+
+        objc.objc_getClass.restype = ctypes.c_void_p
+        objc.sel_registerName.restype = ctypes.c_void_p
+        objc.objc_msgSend.restype = ctypes.c_void_p
+        objc.objc_msgSend.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+
+        # NSBundle.mainBundle
+        NSBundle = objc.objc_getClass(b"NSBundle")
+        mainBundle = objc.objc_msgSend(
+            NSBundle, objc.sel_registerName(b"mainBundle")
+        )
+
+        # mainBundle.infoDictionary (returns NSMutableDictionary)
+        info = objc.objc_msgSend(
+            mainBundle, objc.sel_registerName(b"infoDictionary")
+        )
+
+        # Create NSString objects for key and value
+        NSString = objc.objc_getClass(b"NSString")
+        objc.objc_msgSend.argtypes = [
+            ctypes.c_void_p, ctypes.c_void_p, ctypes.c_char_p
+        ]
+        sel_utf8 = objc.sel_registerName(b"stringWithUTF8String:")
+        key = objc.objc_msgSend(NSString, sel_utf8, b"CFBundleName")
+        val = objc.objc_msgSend(NSString, sel_utf8, name.encode("utf-8"))
+
+        # [infoDictionary setObject:val forKey:key]
+        objc.objc_msgSend.argtypes = [
+            ctypes.c_void_p, ctypes.c_void_p,
+            ctypes.c_void_p, ctypes.c_void_p,
+        ]
+        objc.objc_msgSend(
+            info, objc.sel_registerName(b"setObject:forKey:"), val, key
+        )
+    except Exception:
+        pass  # Silently fail on non-macOS or if ctypes fails
 
 SETTINGS_FILE = Path.home() / ".showmaster_settings.json"
 

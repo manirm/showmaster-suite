@@ -6,7 +6,7 @@ import json
 import threading
 from pathlib import Path
 from browserpilot.core import BrowserPilot
-from common.settings import is_dark_mode, check_for_updates, CURRENT_VERSION
+from common.settings import is_dark_mode, check_for_updates, set_macos_app_name, CURRENT_VERSION
 
 
 # ── Dark Theme Colours ────────────────────────────────────────────────
@@ -316,6 +316,7 @@ class BrowserPilotFrame(wx.Frame):
 
 
 def main():
+    set_macos_app_name("BrowserPilot")
     app = wx.App()
     wx.InitAllImageHandlers()
     app.SetAppName("BrowserPilot")
