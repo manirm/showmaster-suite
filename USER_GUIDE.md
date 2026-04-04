@@ -1,528 +1,638 @@
-# Showmaster & BrowserPilot — User Guide
+# Showmaster Suite — User Guide
 
-Welcome to the documentation and browser automation suite. This guide walks you through every feature of **Showmaster** (documentation builder) and **BrowserPilot** (browser automation), step by step.
+> **Version 0.4.0** | By Mohammed Maniruzzaman, PhD | MIT License
 
 ---
 
 ## Table of Contents
 
-- [Installation](#-installation)
-- [Part 1 — Showmaster](#-part-1--showmaster)
-  - [Tutorial 1: Your First Report (CLI)](#tutorial-1-your-first-report-cli)
-  - [Tutorial 2: Using the GUI](#tutorial-2-using-the-gui)
-  - [Tutorial 3: Capturing Images](#tutorial-3-capturing-images)
-  - [Tutorial 4: Screen Recording](#tutorial-4-screen-recording)
-  - [Tutorial 5: Web Screenshots](#tutorial-5-web-screenshots)
-  - [Tutorial 6: Finalizing a Report](#tutorial-6-finalizing-a-report)
-  - [CLI Reference](#showmaster-cli-reference)
-- [Part 2 — BrowserPilot](#-part-2--browserpilot)
-  - [Tutorial 7: Navigate & Screenshot (CLI)](#tutorial-7-navigate--screenshot-cli)
-  - [Tutorial 8: AI-Powered Interactions](#tutorial-8-ai-powered-interactions)
-  - [Tutorial 9: JavaScript Execution](#tutorial-9-javascript-execution)
-  - [Tutorial 10: Using the GUI](#tutorial-10-using-the-gui)
-  - [CLI Reference](#browserpilot-cli-reference)
-- [Integration: Using Both Together](#-integration-using-both-together)
-- [Configuration](#-configuration)
-- [Troubleshooting](#-troubleshooting)
-- [License](#-license)
+1. [Quick Start](#quick-start)
+2. [Installation](#installation)
+3. [Showmaster Tutorials](#showmaster-tutorials)
+4. [BrowserPilot Tutorials](#browserpilot-tutorials)
+5. [Report Templates](#report-templates)
+6. [Action Recording & Playback](#action-recording--playback)
+7. [AI Conversation Memory](#ai-conversation-memory)
+8. [Dark Mode](#dark-mode)
+9. [PDF Export](#pdf-export)
+10. [GUI Reference](#gui-reference)
+11. [CLI Reference](#cli-reference)
+12. [Keyboard Shortcuts](#keyboard-shortcuts)
+13. [Desktop Launchers](#desktop-launchers)
+14. [Configuration](#configuration)
+15. [Code Signing & Distribution](#code-signing--distribution)
+16. [Troubleshooting](#troubleshooting)
 
 ---
 
-## 🚀 Installation
-
-### Prerequisites
-
-| Requirement | Purpose | Install |
-|---|---|---|
-| **Python 3.12+** | Runtime | [python.org](https://www.python.org/) |
-| **uv** | Dependency management | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
-| **Ollama** | Local AI for BrowserPilot | [ollama.com](https://ollama.com/) |
-| **FFmpeg** | Video processing | `brew install ffmpeg` (macOS) |
-
-### Step-by-Step Setup
+## Quick Start
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/your-username/showmaster-suite.git
+# Install from source
+git clone https://github.com/manirm/showmaster-suite.git
 cd showmaster-suite
-
-# 2. Install Python dependencies
 uv sync
-
-# 3. Install the Playwright browser
 uv run playwright install chromium
 
-# 4. (Optional) Pull an AI model for BrowserPilot
-ollama pull llama3
-```
+# Create your first report
+uv run showmaster init "My First Demo"
+uv run showmaster note "This is a demo report."
+uv run showmaster exec "echo Hello, world!"
+uv run showmaster finalize
 
-### Verify Installation
-
-```bash
-# Check that both CLIs are available
-uv run showmaster --help
-uv run browserpilot --help
-```
-
-You should see a list of commands for each tool. If so, you're ready!
-
----
-
-## 🎬 Part 1 — Showmaster
-
-Showmaster records your workflow into a professional Markdown report. Think of it as a "live notebook" for demos, tutorials, and documentation.
-
----
-
-### Tutorial 1: Your First Report (CLI)
-
-**Goal**: Create a simple Markdown report with notes and command output.
-
-**Step 1 — Initialize a new report file:**
-
-```bash
-uv run showmaster -f my_report.md init "My First Demo"
-```
-
-This creates `my_report.md` with a title header.
-
-**Step 2 — Add a descriptive note:**
-
-```bash
-uv run showmaster -f my_report.md note "This report documents the setup of our project."
-```
-
-**Step 3 — Execute a command and log its output:**
-
-```bash
-uv run showmaster -f my_report.md exec "ls -la"
-```
-
-This runs `ls -la`, captures the output, and appends it to the report as a fenced code block.
-
-**Step 4 — Add another command:**
-
-```bash
-uv run showmaster -f my_report.md exec "python --version"
-```
-
-**Step 5 — Review the report:**
-
-Open `my_report.md` in any Markdown viewer. You'll see the title, your note, and each command with its output formatted neatly.
-
-> **Tip**: The `-f` flag specifies the target file. It defaults to `demo.md` if omitted.
-
----
-
-### Tutorial 2: Using the GUI
-
-**Goal**: Use the graphical interface for a more interactive experience.
-
-**Step 1 — Launch the GUI:**
-
-```bash
+# Launch the GUI
 uv run showmaster-gui
 ```
 
-A window opens with controls on the left and a live Markdown preview on the right.
-
-**Step 2 — Add a note:**
-
-1. Type your text in the **"Add Note"** text area.
-2. Click **"Add Note"**.
-3. Watch the preview update instantly on the right.
-
-**Step 3 — Execute a command:**
-
-1. Type a shell command (e.g., `echo Hello World`) in the **"Execute Command"** field.
-2. Click **"Run Exec"**.
-3. The command output appears in the preview.
-
-**Step 4 — Undo a mistake:**
-
-Click **"Undo Last"** to remove the most recently added section.
-
-**Step 5 — Finalize:**
-
-Click **"Finalize"** to generate a Table of Contents and add a license footer.
-
 ---
 
-### Tutorial 3: Capturing Images
+## Installation
 
-**Goal**: Run a command that produces an image and auto-embed it in the report.
+### Prerequisites
+
+- **Python 3.12+**
+- **uv** (recommended) or pip
+- **Playwright** browsers (for BrowserPilot)
+- **Ollama** (optional, for AI features)
+
+### From Source (Development)
 
 ```bash
-# Suppose you have a Python script that generates a chart:
-uv run showmaster -f my_report.md image "python plot_chart.py"
+git clone https://github.com/manirm/showmaster-suite.git
+cd showmaster-suite
+uv sync                          # Install all dependencies
+uv sync --extra dev              # Include test dependencies
+uv sync --extra pdf              # Include PDF export (weasyprint)
+uv run playwright install chromium
 ```
 
-**How it works:**
-
-1. Showmaster runs the command.
-2. It scans the output for image file paths (`.png`, `.jpg`, `.gif`, `.svg`).
-3. If found, it copies the image next to the report and embeds it with Markdown syntax: `![filename](filename)`.
-
-> **Note**: The command's stdout must print the path to the generated image. For example: `print("output_chart.png")`.
-
----
-
-### Tutorial 4: Screen Recording
-
-**Goal**: Record your screen and embed the video in the report.
-
-**Using the CLI:**
+### From PyPI (when published)
 
 ```bash
-# Record for 10 seconds (default)
-uv run showmaster -f my_report.md record --duration 15
-```
-
-**Using the GUI:**
-
-1. Go to **Tools → Start Video Recording** (or click the **"Start"** button in the Video Recording section).
-2. Perform your demo on screen.
-3. Click **"Stop"** when finished.
-
-The recording is saved as an `.mp4` file and linked in the report.
-
-> **macOS Note**: You may need to grant "Screen Recording" permissions to your terminal in **System Settings → Privacy & Security → Screen Recording**.
-
----
-
-### Tutorial 5: Web Screenshots
-
-**Goal**: Capture a screenshot of a live website and embed it in the report.
-
-```bash
-uv run showmaster -f my_report.md browser-snap "https://github.com"
-```
-
-**How it works:**
-
-1. Showmaster uses BrowserPilot to open the URL.
-2. Waits 2 seconds for the page to render.
-3. Takes a screenshot and saves it next to the report.
-4. Embeds the screenshot in Markdown.
-
-**In the GUI:**
-
-1. Enter a URL in the **"Web Capture"** section.
-2. Click **"Capture Page"**.
-3. The preview updates with the embedded screenshot.
-
----
-
-### Tutorial 6: Finalizing a Report
-
-**Goal**: Add a professional Table of Contents and footer.
-
-```bash
-uv run showmaster -f my_report.md finalize
-```
-
-**What Finalize does:**
-
-1. Scans all `##` and `###` headings in your report.
-2. Generates a clickable Table of Contents after the title.
-3. Appends a license footer: *"This report was generated by Showmaster. Licensed under MIT."*
-
-> **Tip**: Always finalize as the last step — it inserts the TOC at the top.
-
----
-
-### Showmaster CLI Reference
-
-| Command | Description | Example |
-|---|---|---|
-| `init TITLE` | Create a new report | `showmaster -f report.md init "Demo"` |
-| `note TEXT` | Add a text note | `showmaster -f report.md note "Step 1"` |
-| `exec COMMAND` | Run command, log output | `showmaster -f report.md exec "ls"` |
-| `image COMMAND` | Run command, embed output image | `showmaster -f report.md image "python plot.py"` |
-| `pop` | Remove the last section | `showmaster -f report.md pop` |
-| `extract` | List all logged commands | `showmaster -f report.md extract` |
-| `browser-snap URL` | Screenshot a web page | `showmaster -f report.md browser-snap "https://..."` |
-| `record --duration N` | Record screen for N seconds | `showmaster -f report.md record --duration 10` |
-| `finalize` | Add TOC and footer | `showmaster -f report.md finalize` |
-
----
-
-## 🤖 Part 2 — BrowserPilot
-
-BrowserPilot automates a real Chromium browser from the command line or GUI. Browser state (cookies, history) persists between commands.
-
----
-
-### Tutorial 7: Navigate & Screenshot (CLI)
-
-**Goal**: Open a website and capture a screenshot.
-
-**Step 1 — Navigate to a URL:**
-
-```bash
-uv run browserpilot navigate "https://example.com"
-```
-
-The browser opens (headless by default), loads the page, and exits.
-
-**Step 2 — Take a screenshot:**
-
-```bash
-uv run browserpilot snap screenshot.png
-```
-
-BrowserPilot remembers the last URL you visited and restores it automatically.
-
-**Step 3 — Visit another page:**
-
-```bash
-uv run browserpilot navigate "https://github.com/trending"
-uv run browserpilot snap github_trending.png
-```
-
-**Headful mode** (to see the browser window):
-
-```bash
-uv run browserpilot --headful navigate "https://example.com"
+pip install showmaster-suite
+playwright install chromium
 ```
 
 ---
 
-### Tutorial 8: AI-Powered Interactions
+## Showmaster Tutorials
 
-**Goal**: Use natural language to interact with web pages.
-
-> **Prerequisite**: Ollama must be running with a model pulled (e.g., `ollama pull llama3`).
-
-**Step 1 — Navigate to a page:**
+### Tutorial 1: Create a Simple Documentation Report
 
 ```bash
-uv run browserpilot navigate "https://github.com"
+# Initialize a new report
+showmaster init "System Health Check"
+
+# Add descriptive notes
+showmaster note "Checking system status on $(date)"
+
+# Run commands and capture their output
+showmaster exec "uname -a"
+showmaster exec "df -h"
+showmaster exec "uptime"
+
+# Finalize with table of contents
+showmaster finalize
 ```
 
-**Step 2 — AI Click — click an element by describing it:**
+Result: `demo.md` now contains a professional report with all outputs, a TOC, and a license footer.
+
+### Tutorial 2: Work with a Custom File
 
 ```bash
-uv run browserpilot ai-click "Sign in button"
+showmaster -f deployment_notes.md init "Deployment Log — Production"
+showmaster -f deployment_notes.md exec "docker ps"
+showmaster -f deployment_notes.md note "All services running."
+showmaster -f deployment_notes.md finalize
 ```
 
-BrowserPilot extracts all interactive elements from the page, sends them to the local AI, and clicks the best match.
-
-**Step 3 — AI Query — ask a question about the page:**
+### Tutorial 3: Capture Command Output Images
 
 ```bash
-uv run browserpilot navigate "https://news.ycombinator.com"
-uv run browserpilot ai-query "What is the top story right now?"
+# Run a command that produces an image file
+showmaster exec "python plot_chart.py"  # prints path like "chart.png"
+
+# Or use the image command to auto-embed it
+showmaster image "python plot_chart.py"
 ```
 
-The AI reads the page text and responds in plain English.
+### Tutorial 4: Record Screen Video
+
+```bash
+# Record for 15 seconds
+showmaster record --duration 15
+```
+
+Or in the GUI: click **Start** in the Video Recording section, perform your demo, then click **Stop**.
+
+### Tutorial 5: Undo and Edit
+
+```bash
+# Remove the last section added
+showmaster pop
+
+# You can pop multiple times
+showmaster pop
+showmaster pop
+```
+
+### Tutorial 6: Web Page Capture
+
+```bash
+# Capture a screenshot of a website
+showmaster -f report.md browser-snap https://github.com
+```
+
+### Tutorial 7: Extract Commands from a Report
+
+```bash
+# List all commands that were run in a report
+showmaster extract
+```
+
+This is useful for reproducing a workflow documented in a report.
 
 ---
 
-### Tutorial 9: JavaScript Execution
+## BrowserPilot Tutorials
 
-**Goal**: Run custom JavaScript on the current page.
-
-**Step 1 — Navigate to a page:**
+### Tutorial 8: Navigate and Screenshot
 
 ```bash
-uv run browserpilot navigate "https://example.com"
+# Navigate to a page
+browserpilot navigate https://github.com
+
+# Take a screenshot
+browserpilot snap github_home.png
+
+# View in headful mode (see the browser)
+browserpilot --headful navigate https://github.com
 ```
 
-**Step 2 — Execute JavaScript:**
+### Tutorial 9: Execute JavaScript
 
 ```bash
-uv run browserpilot execute-js "document.title"
+# Get the page title
+browserpilot execute-js "document.title"
+
+# Count all links
+browserpilot execute-js "document.querySelectorAll('a').length"
+
+# Extract all heading text
+browserpilot execute-js "Array.from(document.querySelectorAll('h1,h2,h3')).map(e => e.textContent)"
 ```
 
-This prints the page title. You can run any JavaScript expression.
-
-**More examples:**
+### Tutorial 10: Click Elements
 
 ```bash
-# Get all link URLs on the page
-uv run browserpilot execute-js "Array.from(document.querySelectorAll('a')).map(a => a.href)"
+# Click by CSS selector
+browserpilot click-el "a.nav-link"
 
-# Scroll to the bottom
-uv run browserpilot execute-js "window.scrollTo(0, document.body.scrollHeight)"
+# Click the first button
+browserpilot click-el "button"
+```
 
-# Click an element by selector
-uv run browserpilot click-el "#my-button"
+### Tutorial 11: AI-Powered Interaction
+
+Requires [Ollama](https://ollama.com/) running locally.
+
+```bash
+# Start Ollama
+ollama serve
+
+# Navigate to a page
+browserpilot navigate https://news.ycombinator.com
+
+# AI Click — describe what you want to click
+browserpilot ai-click "the login link"
+
+# AI Query — ask questions about page content
+browserpilot ai-query "What are the top 3 stories?"
+
+# Follow-up query (uses conversation memory!)
+browserpilot ai-query "Summarize the first one in detail"
+
+# Clear conversation history
+browserpilot ai-clear
+```
+
+### Tutorial 12: Reset Browser State
+
+```bash
+# Clear all cookies, history, and cached data
+browserpilot reset
 ```
 
 ---
 
-### Tutorial 10: Using the GUI
+## Report Templates
 
-**Goal**: Control the browser through the graphical interface.
+Showmaster includes 4 built-in report templates:
 
-**Step 1 — Launch the GUI:**
+| Template | Description |
+|----------|-------------|
+| `bug_report` | Structured bug report with reproduction steps |
+| `feature_demo` | Feature showcase with before/after sections |
+| `api_walkthrough` | API documentation with endpoint examples |
+| `project_setup` | Project installation and configuration guide |
 
-```bash
-uv run browserpilot-gui
-```
-
-**Step 2 — Navigate:**
-
-1. Enter a URL in the address bar.
-2. Click **"Navigate"**.
-3. The log panel shows the result.
-
-**Step 3 — Take a screenshot:**
-
-Click **"Take Screenshot"** — the image is saved as `gui_screenshot.png`.
-
-**Step 4 — Execute JavaScript:**
-
-Click **"Execute JS"**, enter your expression in the dialog, and see the result in the log.
-
-**Step 5 — AI interactions:**
-
-1. Click **"AI Click"** and describe what to click (e.g., "the search box").
-2. Click **"AI Query"** and ask a question about the page.
-
-**Step 6 — Reset browser profile:**
-
-Click **"Reset Profile"** to clear all saved cookies, history, and cached data.
-
----
-
-### Resetting Browser State
-
-To clear all saved browser state (cookies, history, cached data):
+### Using Templates (CLI)
 
 ```bash
-uv run browserpilot reset
+# List all templates
+showmaster list-templates
+
+# Create a bug report
+showmaster init-template bug_report "Login Page Crash" --author "Dr. Manir"
+
+# Create an API walkthrough
+showmaster init-template api_walkthrough "Payment API v2" -f api_docs.md --author "Team"
 ```
 
-This deletes the `~/.browserpilot_profile` directory and gives you a fresh start.
+### Using Templates (GUI)
+
+1. Open Showmaster GUI
+2. Go to **Tools → New from Template**
+3. Select a template (e.g., Bug Report)
+4. Enter the title
+5. The report is created with all sections pre-populated
 
 ---
 
-### BrowserPilot CLI Reference
+## Action Recording & Playback
 
-| Command | Description | Example |
-|---|---|---|
-| `navigate URL` | Open a URL | `browserpilot navigate "https://..."` |
-| `snap PATH` | Screenshot current page | `browserpilot snap output.png` |
-| `click-el SELECTOR` | Click by CSS selector | `browserpilot click-el "#login-btn"` |
-| `execute-js SCRIPT` | Run JavaScript | `browserpilot execute-js "document.title"` |
-| `ai-click DESC` | AI-powered click | `browserpilot ai-click "Sign in"` |
-| `ai-query QUESTION` | AI-powered page query | `browserpilot ai-query "What is..."` |
-| `reset` | Clear browser profile | `browserpilot reset` |
-| `--headful` | Show browser window | `browserpilot --headful navigate "..."` |
+BrowserPilot can record sequences of browser actions as JSON scripts and replay them later. This is useful for regression testing, demos, and automated workflows.
 
----
-
-## 🔗 Integration: Using Both Together
-
-The most powerful workflow combines Showmaster and BrowserPilot.
-
-### Example: Documenting a Web App
+### Create a Script Interactively
 
 ```bash
-# 1. Start your report
-uv run showmaster -f web_review.md init "Web App Review"
-
-# 2. Add a description
-uv run showmaster -f web_review.md note "Reviewing the homepage design."
-
-# 3. Capture a web screenshot directly into the report
-uv run showmaster -f web_review.md browser-snap "https://myapp.example.com"
-
-# 4. Add additional commentary
-uv run showmaster -f web_review.md note "The homepage loads quickly and has a clean layout."
-
-# 5. Capture another page
-uv run showmaster -f web_review.md browser-snap "https://myapp.example.com/dashboard"
-
-# 6. Log some API responses
-uv run showmaster -f web_review.md exec "curl -s https://myapp.example.com/api/health"
-
-# 7. Finalize with TOC
-uv run showmaster -f web_review.md finalize
+browserpilot create-script my_test.json
 ```
 
-### Using the GUI
+Then type actions one per line:
+```
+navigate https://example.com
+wait 2
+screenshot before.png
+click a
+wait 1
+screenshot after.png
+```
 
-1. Open **Showmaster GUI** (`uv run showmaster-gui`).
-2. In the **Web Capture** section, enter URLs and click **"Capture Page"**.
-3. Showmaster automatically opens BrowserPilot, takes the screenshot, and embeds it in your live preview.
-4. To open a full BrowserPilot GUI, go to **Tools → Open Browser Session**.
+Press `Ctrl+D` (or `Ctrl+Z` on Windows) to finish.
+
+### Create a Script Programmatically
+
+```python
+from browserpilot.recorder import create_script
+
+create_script([
+    {"type": "navigate", "url": "https://example.com"},
+    {"type": "wait", "seconds": 2},
+    {"type": "screenshot", "path": "home.png"},
+    {"type": "click", "selector": "a"},
+    {"type": "wait", "seconds": 1},
+    {"type": "screenshot", "path": "linked_page.png"},
+], "my_workflow.json")
+```
+
+### Replay a Script
+
+```bash
+# Normal speed
+browserpilot replay my_test.json
+
+# 2x speed
+browserpilot replay my_test.json --speed 2.0
+
+# In headful mode (watch it happen)
+browserpilot --headful replay my_test.json
+```
+
+### Supported Action Types
+
+| Action | Fields | Example |
+|--------|--------|---------|
+| `navigate` | `url` | `{"type": "navigate", "url": "https://example.com"}` |
+| `click` | `selector` | `{"type": "click", "selector": "#submit"}` |
+| `type` | `selector`, `text` | `{"type": "type", "selector": "#email", "text": "me@example.com"}` |
+| `screenshot` | `path` | `{"type": "screenshot", "path": "result.png"}` |
+| `js` | `script` | `{"type": "js", "script": "document.title"}` |
+| `wait` | `seconds` | `{"type": "wait", "seconds": 3}` |
+| `ai_click` | `description` | `{"type": "ai_click", "description": "the login button"}` |
+| `ai_query` | `question` | `{"type": "ai_query", "question": "What is the page about?"}` |
 
 ---
 
-## ⚙ Configuration
+## AI Conversation Memory
 
-Settings are stored in `~/.showmaster_settings.json`:
+BrowserPilot maintains a conversation history for AI queries. This enables multi-turn conversations where follow-up questions reference previous answers.
+
+```bash
+browserpilot navigate https://en.wikipedia.org/wiki/Python_(programming_language)
+
+# First question
+browserpilot ai-query "When was Python created?"
+
+# Follow-up (AI remembers the previous answer)
+browserpilot ai-query "Who created it?"
+
+# Clear memory to start fresh
+browserpilot ai-clear
+```
+
+Memory is stored at `~/.browserpilot_profile/.conversation.json` and keeps the last 20 turns.
+
+---
+
+## Dark Mode
+
+Both GUIs automatically detect your OS theme and switch between light and dark mode.
+
+### Automatic Detection
+- **macOS**: Reads `AppleInterfaceStyle` from system defaults
+- **Windows**: Reads `AppsUseLightTheme` from the registry
+- **Linux**: Defaults to light mode
+
+### Manual Override
+
+Edit `~/.showmaster_settings.json`:
+
+```json
+{
+    "dark_mode": "dark"
+}
+```
+
+Options: `"auto"` (default), `"dark"`, `"light"`
+
+The Showmaster markdown preview also renders in dark mode with GitHub-style dark CSS.
+
+---
+
+## PDF Export
+
+Export your finalized reports as PDFs or HTML.
+
+### CLI
+
+```bash
+# Export to PDF (requires weasyprint)
+showmaster export-pdf
+
+# Export to a specific path
+showmaster export-pdf -o report.pdf
+```
+
+### GUI
+
+Go to **File → Export as PDF** (or press `Ctrl+Shift+P`).
+
+### Installing weasyprint (optional)
+
+```bash
+uv sync --extra pdf
+```
+
+If weasyprint is not installed, the export falls back to a styled HTML file.
+
+---
+
+## GUI Reference
+
+### Showmaster GUI
+
+Launch: `showmaster-gui` or double-click `launchers/Showmaster.command`
+
+| Area | Description |
+|------|-------------|
+| **Add Note** | Free-text notes appended to the report |
+| **Execute Command** | Run shell commands, output captured |
+| **Run Image Command** | Run commands that produce images |
+| **Undo Last / Finalize** | Remove last section / add TOC |
+| **Web Capture** | Screenshot any URL via BrowserPilot |
+| **Video Recording** | Start/stop screen recording |
+| **Preview Pane** | Live HTML preview of the report |
+
+### BrowserPilot GUI
+
+Launch: `browserpilot-gui` or double-click `launchers/BrowserPilot.command`
+
+| Area | Description |
+|------|-------------|
+| **Navigation Bar** | URL input + Navigate button |
+| **Take Screenshot** | Capture current page |
+| **Execute JS** | Run JavaScript on the page |
+| **Reset Profile** | Clear all browser state |
+| **Clear AI History** | Reset conversation memory |
+| **AI Click** | Describe an element to click |
+| **AI Query** | Ask questions about page content |
+| **Log Panel** | Shows all actions and results |
+
+---
+
+## CLI Reference
+
+### Showmaster
+
+```
+showmaster [OPTIONS] COMMAND [ARGS]
+
+Options:
+  -f, --file PATH    Target markdown file (default: demo.md)
+
+Commands:
+  init TITLE           Initialize a new report
+  note TEXT            Add a note
+  exec COMMAND         Execute a command and capture output
+  image COMMAND        Execute and embed output image
+  pop                  Remove the last section
+  extract              List all commands in the report
+  finalize             Add TOC and license footer
+  export-pdf           Export as PDF/HTML
+  record               Record screen video
+  browser-snap URL     Capture a web page screenshot
+  list-templates       List available report templates
+  init-template TPL TITLE  Create report from template
+```
+
+### BrowserPilot
+
+```
+browserpilot [OPTIONS] COMMAND [ARGS]
+
+Options:
+  --headful    Show the browser window
+
+Commands:
+  navigate URL         Open a URL
+  click-el SELECTOR    Click an element
+  execute-js SCRIPT    Execute JavaScript
+  snap PATH            Take a screenshot
+  ai-click DESC        AI-powered click
+  ai-query QUESTION    Ask AI about the page
+  ai-clear             Clear conversation history
+  reset                Clear browser profile
+  replay FILE          Replay an action script
+  create-script FILE   Create an action script interactively
+```
+
+---
+
+## Keyboard Shortcuts
+
+### Showmaster GUI
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+N` | New report |
+| `Ctrl+O` | Open report |
+| `Ctrl+S` | Save |
+| `Ctrl+Z` | Undo (pop last section) |
+| `Ctrl+Shift+F` | Finalize report |
+| `Ctrl+Shift+P` | Export as PDF |
+| `Ctrl+R` | Start video recording |
+| `Ctrl+Shift+R` | Stop video recording |
+| `Ctrl+Q` | Quit |
+| `F1` | Open User Guide |
+
+### BrowserPilot GUI
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+L` | Focus URL / Navigate |
+| `Ctrl+Shift+S` | Take screenshot |
+| `Ctrl+J` | Execute JavaScript |
+| `Ctrl+Shift+C` | AI Click |
+| `Ctrl+Shift+Q` | AI Query |
+| `Ctrl+Q` | Quit |
+| `F1` | Open User Guide |
+
+---
+
+## Desktop Launchers
+
+### macOS
+Double-click these files in Finder (no terminal needed):
+- `launchers/Showmaster.command`
+- `launchers/BrowserPilot.command`
+
+### Windows
+Double-click these batch files:
+- `launchers/Showmaster.bat`
+- `launchers/BrowserPilot.bat`
+
+### Linux
+```bash
+./launchers/Showmaster.command
+```
+
+---
+
+## Configuration
+
+Settings are stored at `~/.showmaster_settings.json`:
 
 ```json
 {
     "ollama_url": "http://localhost:11434",
     "ollama_model": "llama3",
     "browser_headless": false,
-    "video_format": "mov"
+    "video_format": "mov",
+    "dark_mode": "auto",
+    "check_updates": true
 }
 ```
 
-| Setting | Description | Default |
-|---|---|---|
-| `ollama_url` | Ollama server address | `http://localhost:11434` |
-| `ollama_model` | AI model for BrowserPilot | `llama3` |
-| `browser_headless` | Run browser without a window | `false` |
-| `video_format` | Screen recording format | `mov` |
-
-To change a setting, edit the file directly or use the **Preferences** menu in either GUI.
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `ollama_url` | `http://localhost:11434` | Ollama API endpoint |
+| `ollama_model` | `llama3` | AI model for queries |
+| `browser_headless` | `false` | Default browser mode |
+| `video_format` | `mov` | Screen recording format |
+| `dark_mode` | `auto` | Theme: `auto`, `dark`, `light` |
+| `check_updates` | `true` | Check GitHub for updates on launch |
 
 ---
 
-## 🛠 Troubleshooting
+## Code Signing & Distribution
 
-### Ollama / AI Features Not Working
+### For End Users
 
-- **Ensure Ollama is running**: `ollama serve`
-- **Verify the model is installed**: `ollama list` — you should see `llama3` or your configured model.
-- **Check connectivity**: `curl http://localhost:11434/api/tags`
+Download signed binaries from [GitHub Releases](https://github.com/manirm/showmaster-suite/releases).
 
-### Screen Recording Permissions (macOS)
+### For Developers: Setting Up Code Signing
 
-On macOS, screen recording requires explicit permission:
+#### macOS (Apple Developer Program — $99/year)
 
-1. Go to **System Settings → Privacy & Security → Screen Recording**.
-2. Enable your terminal application (e.g., Terminal, iTerm2, VS Code).
-3. Restart the terminal after granting permission.
+1. Enroll at [developer.apple.com/programs](https://developer.apple.com/programs/)
+2. Create a **Developer ID Application** certificate in Xcode
+3. Export as `.p12` and encode: `base64 -i cert.p12 | pbcopy`
+4. Add these GitHub Secrets:
+   - `APPLE_CERTIFICATE_BASE64` — The base64 `.p12`
+   - `APPLE_CERTIFICATE_PASSWORD` — The `.p12` password
+   - `APPLE_TEAM_ID` — Your team ID
+   - `APPLE_ID` — Your Apple ID email
+   - `APPLE_APP_SPECIFIC_PASSWORD` — Generate at [appleid.apple.com](https://appleid.apple.com)
 
-### Browser Screenshots Are Blank
+#### Windows (Code Signing Certificate)
 
-If `browserpilot snap` returns a blank image:
+Options:
+- **Free for open-source**: [SignPath Foundation](https://signpath.org/)
+- **Paid**: DigiCert ($289/yr), Sectigo ($200/yr), SSL.com ($200/yr)
 
-- Make sure you ran `browserpilot navigate URL` first.
-- The state file tracks the last-visited URL. Run `browserpilot reset` and try again.
-- Ensure Playwright browsers are installed: `uv run playwright install chromium`.
+1. Obtain an OV code signing certificate (.pfx)
+2. Encode: `base64 cert.pfx > cert_b64.txt`
+3. Add GitHub Secrets:
+   - `WINDOWS_CERTIFICATE_BASE64`
+   - `WINDOWS_CERTIFICATE_PASSWORD`
 
-### Import Errors
+#### Linux (GPG — Free)
 
-If you see `ModuleNotFoundError`:
+1. Create GPG key: `gpg --full-generate-key`
+2. Export: `gpg --armor --export-secret-keys YOUR_EMAIL | base64`
+3. Add GitHub Secret: `GPG_PRIVATE_KEY`
 
+The CI pipeline auto-detects available secrets and only signs when certificates are present.
+
+---
+
+## Troubleshooting
+
+### "Browser not found"
 ```bash
-# Re-sync dependencies
-uv sync
-
-# Verify the package is installed
-uv run python -c "import showmaster; import browserpilot; print('OK')"
-```
-
-### Playwright Browser Missing
-
-```bash
-# Install/reinstall browsers
 uv run playwright install chromium
 ```
 
+### "Ollama connection refused"
+```bash
+ollama serve    # Start the Ollama server
+ollama pull llama3  # Download the model
+```
+
+### "weasyprint not installed"
+```bash
+uv sync --extra pdf
+```
+On macOS you may also need: `brew install pango`
+
+### GUI won't start
+```bash
+# Check wxPython installation
+uv run python -c "import wx; print(wx.version())"
+```
+
+### "Unidentified developer" (macOS)
+If downloading an unsigned binary: right-click → Open → Open.
+To permanently fix: set up code signing (see above).
+
+### Reset everything
+```bash
+browserpilot reset                    # Clear browser state
+rm ~/.showmaster_settings.json        # Reset settings
+rm ~/.browserpilot_profile/.conversation.json  # Clear AI memory
+```
+
 ---
 
-## 📜 License
-
-Showmaster and BrowserPilot are licensed under the **MIT License**. See [LICENSE](LICENSE) for details.
-
-Built by Mohammed Maniruzzaman, PhD.
+*This guide covers Showmaster Suite v0.4.0. For updates, visit [github.com/manirm/showmaster-suite](https://github.com/manirm/showmaster-suite).*

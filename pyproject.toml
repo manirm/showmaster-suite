@@ -1,12 +1,30 @@
 [project]
-name = "tools"
-version = "0.3.0"
-description = "Showmaster and BrowserPilot tools"
+name = "showmaster-suite"
+version = "0.4.0"
+description = "Showmaster: documentation tool + BrowserPilot: AI browser automation"
 readme = "README.md"
+license = { text = "MIT" }
 authors = [
-    { name = "manirm", email = "manirm@users.noreply.github.com" }
+    { name = "Mohammed Maniruzzaman, PhD", email = "manirm@users.noreply.github.com" }
 ]
-requires-python = ">=3.12.8"
+requires-python = ">=3.12"
+keywords = ["documentation", "browser-automation", "playwright", "AI", "demo"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Environment :: MacOS X",
+    "Environment :: Win32 (MS Windows)",
+    "Framework :: Pytest",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Documentation",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Quality Assurance",
+]
 dependencies = [
     "click>=8.3.1",
     "markdown2>=2.5.5",
@@ -17,7 +35,6 @@ dependencies = [
     "mss",
     "opencv-python",
     "numpy",
-    "nuitka",
     "imageio",
     "zstandard",
 ]
@@ -27,6 +44,18 @@ dev = [
     "pytest>=8.0",
     "pytest-timeout>=2.3",
 ]
+pdf = [
+    "weasyprint>=62.0",
+]
+build = [
+    "nuitka",
+]
+
+[project.urls]
+Homepage = "https://github.com/manirm/showmaster-suite"
+Repository = "https://github.com/manirm/showmaster-suite"
+Issues = "https://github.com/manirm/showmaster-suite/issues"
+Documentation = "https://github.com/manirm/showmaster-suite/blob/main/USER_GUIDE.md"
 
 [project.scripts]
 showmaster = "showmaster.cli:cli"
