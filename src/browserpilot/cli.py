@@ -83,6 +83,83 @@ def reset(ctx):
     ctx.obj["bp"].reset()
 
 
+# ── PDF Capture ───────────────────────────────────────────────────────
+
+@main_cli.command(name="save-pdf")
+@click.argument("path")
+@click.pass_context
+def save_pdf(ctx, path):
+    """Save the current page as a PDF file."""
+    ctx.obj["bp"].save_pdf(path)
+
+
+# ── Form Filling ──────────────────────────────────────────────────────
+
+@main_cli.command()
+@click.argument("selector")
+@click.argument("text")
+@click.pass_context
+def fill(ctx, selector, text):
+    """Fill a form field with text."""
+    ctx.obj["bp"].fill(selector, text)
+
+
+@main_cli.command(name="type-text")
+@click.argument("selector")
+@click.argument("text")
+@click.option("--delay", default=50, help="Delay between keystrokes in ms.")
+@click.pass_context
+def type_text(ctx, selector, text, delay):
+    """Type text character by character (simulates real typing)."""
+    ctx.obj["bp"].type_text(selector, text, delay=delay)
+
+
+@main_cli.command(name="select-option")
+@click.argument("selector")
+@click.argument("value")
+@click.pass_context
+def select_option(ctx, selector, value):
+    """Select a dropdown option by value."""
+    ctx.obj["bp"].select(selector, value)
+
+
+# ── Wait Strategies ───────────────────────────────────────────────────
+
+@main_cli.command(name="wait-for")
+@click.argument("selector")
+@click.option("--timeout", default=30000, help="Timeout in ms.")
+@click.pass_context
+def wait_for(ctx, selector, timeout):
+    """Wait for a CSS selector to appear on the page."""
+    ctx.obj["bp"].wait_for(selector, timeout=timeout)
+
+
+@main_cli.command(name="wait-idle")
+@click.option("--timeout", default=30000, help="Timeout in ms.")
+@click.pass_context
+def wait_idle(ctx, timeout):
+    """Wait for the network to be idle."""
+    ctx.obj["bp"].wait_idle(timeout=timeout)
+
+
+# ── Cookie / Session Management ───────────────────────────────────────
+
+@main_cli.command(name="export-cookies")
+@click.argument("path")
+@click.pass_context
+def export_cookies(ctx, path):
+    """Export browser cookies to a JSON file."""
+    ctx.obj["bp"].export_cookies(path)
+
+
+@main_cli.command(name="import-cookies")
+@click.argument("path")
+@click.pass_context
+def import_cookies(ctx, path):
+    """Import cookies from a JSON file."""
+    ctx.obj["bp"].import_cookies(path)
+
+
 @main_cli.command()
 @click.argument("script_file")
 @click.option("--speed", default=1.0, help="Playback speed multiplier (2.0 = 2x fast).")

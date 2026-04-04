@@ -1,6 +1,6 @@
 [project]
 name = "showmaster-suite"
-version = "0.4.0"
+version = "0.5.0"
 description = "Showmaster: documentation tool + BrowserPilot: AI browser automation"
 readme = "README.md"
 license = { text = "MIT" }

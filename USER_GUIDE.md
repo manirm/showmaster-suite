@@ -1,6 +1,6 @@
 # Showmaster Suite — User Guide
 
-> **Version 0.4.0** | By Mohammed Maniruzzaman, PhD | MIT License
+> **Version 0.5.0** | By Mohammed Maniruzzaman, PhD | MIT License
 
 ---
 
@@ -15,13 +15,19 @@
 7. [AI Conversation Memory](#ai-conversation-memory)
 8. [Dark Mode](#dark-mode)
 9. [PDF Export](#pdf-export)
-10. [GUI Reference](#gui-reference)
-11. [CLI Reference](#cli-reference)
-12. [Keyboard Shortcuts](#keyboard-shortcuts)
-13. [Desktop Launchers](#desktop-launchers)
-14. [Configuration](#configuration)
-15. [Code Signing & Distribution](#code-signing--distribution)
-16. [Troubleshooting](#troubleshooting)
+10. [Split-Pane Editor](#split-pane-editor)
+11. [Form Automation](#form-automation)
+12. [Wait Strategies](#wait-strategies)
+13. [Cookie Management](#cookie-management)
+14. [Drag & Drop Images](#drag--drop-images)
+15. [Custom CSS Themes](#custom-css-themes)
+16. [GUI Reference](#gui-reference)
+17. [CLI Reference](#cli-reference)
+18. [Keyboard Shortcuts](#keyboard-shortcuts)
+19. [Desktop Launchers](#desktop-launchers)
+20. [Configuration](#configuration)
+21. [Code Signing & Distribution](#code-signing--distribution)
+22. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -398,6 +404,117 @@ If weasyprint is not installed, the export falls back to a styled HTML file.
 
 ---
 
+## Split-Pane Editor
+
+The Showmaster GUI features a **split-pane view** with a syntax-highlighted markdown editor on the left and a live HTML preview on the right.
+
+### Features
+
+- **Scintilla editor** with markdown syntax highlighting and line numbers
+- **Live preview** auto-refreshes every 2 seconds when the file changes
+- **Auto-save** saves unsaved changes every 30 seconds
+- Toggle the editor with **View → Show Editor** (`Ctrl+E`)
+
+### Editing Workflow
+
+1. Type in the editor pane — changes are reflected in the preview
+2. Press `Ctrl+S` to save immediately
+3. Use the controls on the left to add notes, run commands, etc.
+4. The editor syncs automatically when external tools modify the file
+
+---
+
+## Form Automation
+
+BrowserPilot can fill forms, select dropdowns, and type text naturally.
+
+```bash
+# Fill a field instantly
+browserpilot fill "#email" "user@example.com"
+browserpilot fill "#password" "mysecretpass"
+
+# Type character by character (simulates real typing)
+browserpilot type-text "#search" "hello world" --delay 100
+
+# Select a dropdown option
+browserpilot select-option "#country" "US"
+```
+
+---
+
+## Wait Strategies
+
+Control timing and synchronization in your automation scripts.
+
+```bash
+# Wait for an element to appear
+browserpilot wait-for "#results" --timeout 10000
+
+# Wait for the network to be idle (no requests for 500ms)
+browserpilot wait-idle
+```
+
+These are especially useful in action scripts for reliable automation:
+```json
+[
+    {"type": "navigate", "url": "https://example.com"},
+    {"type": "wait", "seconds": 2},
+    {"type": "click", "selector": "#login"},
+    {"type": "wait", "seconds": 1},
+    {"type": "screenshot", "path": "result.png"}
+]
+```
+
+---
+
+## Cookie Management
+
+Export and import browser cookies for session sharing and testing.
+
+```bash
+# Export current cookies
+browserpilot export-cookies session.json
+
+# Import cookies (e.g., share a login session)
+browserpilot import-cookies session.json
+```
+
+Cookie files are standard JSON arrays compatible with Playwright's cookie format.
+
+---
+
+## Drag & Drop Images
+
+In the Showmaster GUI, **drag image files** from Finder/Explorer directly into the editor to embed them in your report.
+
+Supported formats: `.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`, `.webp`
+
+The image is copied to the report directory and embedded with markdown syntax.
+
+---
+
+## Custom CSS Themes
+
+Create a custom theme for the Showmaster preview by placing a CSS file at:
+
+```
+~/.showmaster/themes/custom.css
+```
+
+This CSS will override the default light/dark theme for the HTML preview. Example:
+
+```css
+body {
+    font-family: "Georgia", serif;
+    background: #fdf6e3;
+    color: #657b83;
+    line-height: 1.8;
+}
+pre { background: #eee8d5; }
+```
+
+---
+
 ## GUI Reference
 
 ### Showmaster GUI
@@ -406,13 +523,16 @@ Launch: `showmaster-gui` or double-click `launchers/Showmaster.command`
 
 | Area | Description |
 |------|-------------|
+| **Markdown Editor** | Syntax-highlighted editor with line numbers |
+| **Live Preview** | Auto-refreshing HTML preview (right pane) |
 | **Add Note** | Free-text notes appended to the report |
 | **Execute Command** | Run shell commands, output captured |
 | **Run Image Command** | Run commands that produce images |
 | **Undo Last / Finalize** | Remove last section / add TOC |
 | **Web Capture** | Screenshot any URL via BrowserPilot |
 | **Video Recording** | Start/stop screen recording |
-| **Preview Pane** | Live HTML preview of the report |
+| **Drag & Drop** | Drop images to embed in the report |
+| **Auto-Save** | Saves every 30 seconds automatically |
 
 ### BrowserPilot GUI
 
@@ -465,16 +585,24 @@ Options:
   --headful    Show the browser window
 
 Commands:
-  navigate URL         Open a URL
-  click-el SELECTOR    Click an element
-  execute-js SCRIPT    Execute JavaScript
-  snap PATH            Take a screenshot
-  ai-click DESC        AI-powered click
-  ai-query QUESTION    Ask AI about the page
-  ai-clear             Clear conversation history
-  reset                Clear browser profile
-  replay FILE          Replay an action script
-  create-script FILE   Create an action script interactively
+  navigate URL             Open a URL
+  click-el SELECTOR        Click an element
+  execute-js SCRIPT        Execute JavaScript
+  snap PATH                Take a screenshot
+  save-pdf PATH            Save page as PDF
+  fill SELECTOR TEXT       Fill a form field
+  type-text SELECTOR TEXT  Type with keystroke simulation
+  select-option SEL VALUE  Select a dropdown option
+  wait-for SELECTOR        Wait for element to appear
+  wait-idle                Wait for network idle
+  export-cookies PATH      Export cookies to JSON
+  import-cookies PATH      Import cookies from JSON
+  ai-click DESC            AI-powered click
+  ai-query QUESTION        Ask AI about the page
+  ai-clear                 Clear conversation history
+  reset                    Clear browser profile
+  replay FILE              Replay an action script
+  create-script FILE       Create action script interactively
 ```
 
 ---
@@ -488,6 +616,7 @@ Commands:
 | `Ctrl+N` | New report |
 | `Ctrl+O` | Open report |
 | `Ctrl+S` | Save |
+| `Ctrl+E` | Toggle editor panel |
 | `Ctrl+Z` | Undo (pop last section) |
 | `Ctrl+Shift+F` | Finalize report |
 | `Ctrl+Shift+P` | Export as PDF |

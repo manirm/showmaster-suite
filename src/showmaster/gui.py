@@ -1,13 +1,18 @@
 import wx
 import wx.html2
+import wx.stc
 import markdown2
 import threading
+import time
 from pathlib import Path
 from showmaster.core import Showmaster
-from common.settings import is_dark_mode, check_for_updates, CURRENT_VERSION
+from common.settings import (
+    is_dark_mode, check_for_updates, load_settings, save_settings,
+    CURRENT_VERSION,
+)
 
 
-# ── Dark / Light Theme CSS ──────────────────────────────────────────────
+# ── Theme CSS ─────────────────────────────────────────────────────────
 
 LIGHT_CSS = """
 body {
@@ -49,41 +54,46 @@ th, td { border: 1px solid #30363d; padding: 8px; text-align: left; color: #c9d1
 th { background: #161b22; }
 """
 
-# ── Dark Mode wxPython Colours ──────────────────────────────────────────
+# ── Dark Mode wxPython Colours ────────────────────────────────────────
 
-DARK_BG = wx.Colour(22, 27, 34)       # #161B22
-DARK_FG = wx.Colour(201, 209, 217)    # #C9D1D9
-DARK_PANEL = wx.Colour(13, 17, 23)    # #0D1117
-DARK_INPUT = wx.Colour(33, 38, 45)    # #21262D
-DARK_ACCENT = wx.Colour(88, 166, 255) # #58A6FF
+DARK_BG = wx.Colour(22, 27, 34)
+DARK_FG = wx.Colour(201, 209, 217)
+DARK_PANEL = wx.Colour(13, 17, 23)
+DARK_INPUT = wx.Colour(33, 38, 45)
 
 
-def apply_dark_theme(widget, depth=0):
+def apply_dark_theme(widget):
     """Recursively apply dark theme to a widget and its children."""
     if isinstance(widget, (wx.TextCtrl, wx.ComboBox)):
         widget.SetBackgroundColour(DARK_INPUT)
         widget.SetForegroundColour(DARK_FG)
-    elif isinstance(widget, wx.Button):
-        # Don't override accent buttons
-        pass
     elif isinstance(widget, wx.StaticText):
         widget.SetForegroundColour(DARK_FG)
     elif isinstance(widget, wx.Panel):
         widget.SetBackgroundColour(DARK_PANEL)
     elif isinstance(widget, wx.Frame):
         widget.SetBackgroundColour(DARK_BG)
-
     if hasattr(widget, 'GetChildren'):
         for child in widget.GetChildren():
-            apply_dark_theme(child, depth + 1)
+            apply_dark_theme(child)
+
+
+def load_custom_css():
+    """Load user's custom CSS theme if it exists."""
+    custom_path = Path.home() / ".showmaster" / "themes" / "custom.css"
+    if custom_path.exists():
+        return custom_path.read_text()
+    return None
 
 
 class ShowmasterFrame(wx.Frame):
     def __init__(self, filename="demo.md"):
-        super().__init__(None, title=f"Showmaster - {filename}", size=(1000, 800))
+        super().__init__(None, title=f"Showmaster — {filename}", size=(1200, 850))
         self.filename = Path(filename)
         self.sm = Showmaster(self.filename)
         self.dark = is_dark_mode()
+        self._last_mtime = 0  # For auto-refresh
+        self._autosave_dirty = False
 
         self.init_menubar()
         self.init_icon()
@@ -92,10 +102,16 @@ class ShowmasterFrame(wx.Frame):
 
         if self.dark:
             apply_dark_theme(self)
+            # Style the Scintilla editor for dark mode
+            self._apply_dark_to_editor()
             self.Refresh()
 
-        # Check for updates in background
+        # Background tasks
         self._check_updates()
+        self._start_auto_refresh()
+        self._start_autosave()
+
+    # ── Background Tasks ──────────────────────────────────────────────
 
     def _check_updates(self):
         def _task():
@@ -107,23 +123,54 @@ class ShowmasterFrame(wx.Frame):
                 )
         threading.Thread(target=_task, daemon=True).start()
 
+    def _start_auto_refresh(self):
+        """Poll the file for changes every 2 seconds and auto-refresh preview."""
+        self._refresh_timer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, self._on_auto_refresh, self._refresh_timer)
+        self._refresh_timer.Start(2000)
+
+    def _on_auto_refresh(self, event):
+        if self.filename.exists():
+            mtime = self.filename.stat().st_mtime
+            if mtime != self._last_mtime:
+                self._last_mtime = mtime
+                self.update_preview()
+                # Also sync the editor if it wasn't the source of the change
+                if not self._autosave_dirty:
+                    self.editor.SetText(self.filename.read_text())
+
+    def _start_autosave(self):
+        """Auto-save every 30 seconds if there are unsaved changes."""
+        self._autosave_timer = wx.Timer(self)
+        self.Bind(wx.EVT_TIMER, self._on_autosave, self._autosave_timer)
+        self._autosave_timer.Start(30000)
+
+    def _on_autosave(self, event):
+        if self._autosave_dirty:
+            self._save_editor_to_file()
+            self.StatusBar.SetStatusText("Auto-saved")
+
+    def _save_editor_to_file(self):
+        content = self.editor.GetText()
+        self.filename.write_text(content)
+        self._autosave_dirty = False
+        self._last_mtime = self.filename.stat().st_mtime
+
+    # ── Resource Path ─────────────────────────────────────────────────
+
     def get_resource_path(self, relative_path):
         import sys
-
         dev_path = Path(__file__).parent.parent.parent / relative_path
         if dev_path.exists():
             return dev_path
-
         base_path = Path(sys.executable).parent
         standalone_path = base_path / relative_path
         if standalone_path.exists():
             return standalone_path
-
         if sys.platform == "darwin" and ".app/Contents/MacOS" in str(base_path):
             resource_path = base_path.parent.parent / "Resources" / relative_path
             if resource_path.exists():
                 return resource_path
-
         return standalone_path
 
     def init_icon(self):
@@ -136,13 +183,15 @@ class ShowmasterFrame(wx.Frame):
                 icon = wx.Icon()
                 icon.CopyFromBitmap(bitmap)
                 self.SetIcon(icon)
-            except Exception as e:
-                print(f"Error loading icon: {e}")
+            except Exception:
+                pass
+
+    # ── Menu ──────────────────────────────────────────────────────────
 
     def init_menubar(self):
         menubar = wx.MenuBar()
 
-        # File Menu
+        # File
         file_menu = wx.Menu()
         new_item = file_menu.Append(wx.ID_NEW, "&New\tCtrl+N")
         open_item = file_menu.Append(wx.ID_OPEN, "&Open\tCtrl+O")
@@ -154,14 +203,20 @@ class ShowmasterFrame(wx.Frame):
         exit_item = file_menu.Append(wx.ID_EXIT, "E&xit\tCtrl+Q")
         menubar.Append(file_menu, "&File")
 
-        # Edit Menu
+        # Edit
         edit_menu = wx.Menu()
         undo_item = edit_menu.Append(wx.ID_UNDO, "&Undo (Pop Last)\tCtrl+Z")
         edit_menu.AppendSeparator()
         prefs_item = edit_menu.Append(wx.ID_PREFERENCES, "&Preferences")
         menubar.Append(edit_menu, "&Edit")
 
-        # Tools Menu
+        # View
+        view_menu = wx.Menu()
+        self.editor_toggle = view_menu.AppendCheckItem(wx.ID_ANY, "Show &Editor\tCtrl+E")
+        self.editor_toggle.Check(True)
+        menubar.Append(view_menu, "&View")
+
+        # Tools
         tools_menu = wx.Menu()
         record_item = tools_menu.Append(wx.ID_ANY, "Start &Video Recording\tCtrl+R")
         stop_record_item = tools_menu.Append(wx.ID_ANY, "Stop Video Recording\tCtrl+Shift+R")
@@ -178,7 +233,7 @@ class ShowmasterFrame(wx.Frame):
         tools_menu.AppendSubMenu(template_menu, "New from &Template")
         menubar.Append(tools_menu, "&Tools")
 
-        # Help Menu
+        # Help
         help_menu = wx.Menu()
         guide_item = help_menu.Append(wx.ID_ANY, "User &Guide\tF1")
         about_item = help_menu.Append(wx.ID_ABOUT, "&About")
@@ -187,123 +242,200 @@ class ShowmasterFrame(wx.Frame):
         self.SetMenuBar(menubar)
 
         # Bindings
+        self.Bind(wx.EVT_MENU, self.on_new, new_item)
+        self.Bind(wx.EVT_MENU, self.on_open, open_item)
+        self.Bind(wx.EVT_MENU, self.on_save, save_item)
         self.Bind(wx.EVT_MENU, self.on_pop, undo_item)
         self.Bind(wx.EVT_MENU, self.on_finalize, finalize_item)
         self.Bind(wx.EVT_MENU, self.on_export_pdf, export_pdf_item)
         self.Bind(wx.EVT_MENU, lambda e: self.Close(), exit_item)
+        self.Bind(wx.EVT_MENU, self.on_toggle_editor, self.editor_toggle)
         self.Bind(wx.EVT_MENU, self.on_start_record, record_item)
         self.Bind(wx.EVT_MENU, self.on_stop_record, stop_record_item)
         self.Bind(wx.EVT_MENU, self.on_open_browser, browser_item)
         self.Bind(wx.EVT_MENU, self.on_guide, guide_item)
         self.Bind(wx.EVT_MENU, self.on_about, about_item)
 
+    # ── UI ────────────────────────────────────────────────────────────
+
     def init_ui(self):
         panel = wx.Panel(self)
         main_sizer = wx.BoxSizer(wx.HORIZONTAL)
 
-        # Left side: Controls
+        # ── Left: Controls ────────────────────────────────────────────
         left_panel = wx.Panel(panel)
+        left_panel.SetMinSize((280, -1))
         left_sizer = wx.BoxSizer(wx.VERTICAL)
 
         # Title
-        title_label = wx.StaticText(left_panel, label="Showmaster Controls")
+        title_label = wx.StaticText(left_panel, label="Showmaster")
         title_label.SetFont(wx.Font(14, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD))
         left_sizer.Add(title_label, 0, wx.ALL | wx.EXPAND, 10)
 
         # Note
-        self.note_text = wx.TextCtrl(left_panel, style=wx.TE_MULTILINE, size=(-1, 100))
+        self.note_text = wx.TextCtrl(left_panel, style=wx.TE_MULTILINE, size=(-1, 80))
         left_sizer.Add(wx.StaticText(left_panel, label="Add Note:"), 0, wx.LEFT | wx.TOP, 10)
-        left_sizer.Add(self.note_text, 0, wx.ALL | wx.EXPAND, 10)
-
+        left_sizer.Add(self.note_text, 0, wx.ALL | wx.EXPAND, 5)
         note_btn = wx.Button(left_panel, label="Add Note")
         note_btn.Bind(wx.EVT_BUTTON, self.on_add_note)
-        left_sizer.Add(note_btn, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+        left_sizer.Add(note_btn, 0, wx.LEFT | wx.RIGHT | wx.EXPAND, 5)
 
         # Exec
         self.exec_text = wx.TextCtrl(left_panel)
-        left_sizer.Add(wx.StaticText(left_panel, label="Execute Command:"), 0, wx.LEFT | wx.TOP, 10)
-        left_sizer.Add(self.exec_text, 0, wx.ALL | wx.EXPAND, 10)
+        left_sizer.Add(wx.StaticText(left_panel, label="Execute:"), 0, wx.LEFT | wx.TOP, 10)
+        left_sizer.Add(self.exec_text, 0, wx.ALL | wx.EXPAND, 5)
 
-        exec_btn = wx.Button(left_panel, label="Run Exec")
+        exec_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        exec_btn = wx.Button(left_panel, label="Run")
         exec_btn.Bind(wx.EVT_BUTTON, self.on_run_exec)
-        left_sizer.Add(exec_btn, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
-
-        # Image
-        img_btn = wx.Button(left_panel, label="Run Image Command")
+        exec_sizer.Add(exec_btn, 1, wx.RIGHT, 3)
+        img_btn = wx.Button(left_panel, label="Image")
         img_btn.Bind(wx.EVT_BUTTON, self.on_run_image)
-        left_sizer.Add(img_btn, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+        exec_sizer.Add(img_btn, 1, wx.LEFT, 3)
+        left_sizer.Add(exec_sizer, 0, wx.LEFT | wx.RIGHT | wx.EXPAND, 5)
 
-        # Action Buttons
+        # Action buttons
+        left_sizer.Add(wx.StaticLine(left_panel), 0, wx.EXPAND | wx.ALL, 5)
         btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
         pop_btn = wx.Button(left_panel, label="Undo Last")
         pop_btn.Bind(wx.EVT_BUTTON, self.on_pop)
-        btn_sizer.Add(pop_btn, 1, wx.RIGHT, 5)
-
+        btn_sizer.Add(pop_btn, 1, wx.RIGHT, 3)
         finalize_btn = wx.Button(left_panel, label="Finalize")
         finalize_btn.SetBackgroundColour(wx.Colour(0, 120, 215))
         finalize_btn.SetForegroundColour(wx.WHITE)
         finalize_btn.Bind(wx.EVT_BUTTON, self.on_finalize)
-        btn_sizer.Add(finalize_btn, 1, wx.LEFT, 5)
+        btn_sizer.Add(finalize_btn, 1, wx.LEFT, 3)
+        left_sizer.Add(btn_sizer, 0, wx.ALL | wx.EXPAND, 5)
 
-        left_sizer.Add(btn_sizer, 0, wx.ALL | wx.EXPAND, 10)
-
-        # Web Capture Section
-        left_sizer.Add(wx.StaticLine(left_panel), 0, wx.EXPAND | wx.ALL, 5)
+        # Web Capture
+        left_sizer.Add(wx.StaticLine(left_panel), 0, wx.EXPAND | wx.ALL, 3)
         web_label = wx.StaticText(left_panel, label="Web Capture")
-        web_label.SetFont(wx.Font(11, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD))
+        web_label.SetFont(wx.Font(10, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD))
         left_sizer.Add(web_label, 0, wx.LEFT | wx.TOP, 10)
-
         self.url_text = wx.TextCtrl(left_panel, value="https://google.com")
-        left_sizer.Add(self.url_text, 0, wx.ALL | wx.EXPAND, 10)
-
+        left_sizer.Add(self.url_text, 0, wx.ALL | wx.EXPAND, 5)
         web_btn = wx.Button(left_panel, label="Capture Page")
         web_btn.Bind(wx.EVT_BUTTON, self.on_browser_snap)
-        left_sizer.Add(web_btn, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, 10)
+        left_sizer.Add(web_btn, 0, wx.LEFT | wx.RIGHT | wx.EXPAND, 5)
 
-        # Video Section
-        left_sizer.Add(wx.StaticLine(left_panel), 0, wx.EXPAND | wx.ALL, 5)
-        vid_label = wx.StaticText(left_panel, label="Video Recording")
-        vid_label.SetFont(wx.Font(11, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD))
+        # Video
+        left_sizer.Add(wx.StaticLine(left_panel), 0, wx.EXPAND | wx.ALL, 3)
+        vid_label = wx.StaticText(left_panel, label="Video")
+        vid_label.SetFont(wx.Font(10, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD))
         left_sizer.Add(vid_label, 0, wx.LEFT | wx.TOP, 10)
-
-        vid_btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        vid_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.start_vid_btn = wx.Button(left_panel, label="Start")
         self.start_vid_btn.Bind(wx.EVT_BUTTON, self.on_start_record)
-        vid_btn_sizer.Add(self.start_vid_btn, 1, wx.RIGHT, 5)
-
+        vid_sizer.Add(self.start_vid_btn, 1, wx.RIGHT, 3)
         self.stop_vid_btn = wx.Button(left_panel, label="Stop")
         self.stop_vid_btn.Bind(wx.EVT_BUTTON, self.on_stop_record)
         self.stop_vid_btn.Disable()
-        vid_btn_sizer.Add(self.stop_vid_btn, 1, wx.LEFT, 5)
-
-        left_sizer.Add(vid_btn_sizer, 0, wx.ALL | wx.EXPAND, 10)
+        vid_sizer.Add(self.stop_vid_btn, 1, wx.LEFT, 3)
+        left_sizer.Add(vid_sizer, 0, wx.ALL | wx.EXPAND, 5)
 
         left_panel.SetSizer(left_sizer)
-        main_sizer.Add(left_panel, 1, wx.EXPAND)
+        main_sizer.Add(left_panel, 0, wx.EXPAND)
 
-        # Right side: Preview
-        self.browser = wx.html2.WebView.New(panel)
-        main_sizer.Add(self.browser, 2, wx.EXPAND | wx.ALL, 5)
+        # ── Center: Split pane (Editor + Preview) ─────────────────────
+        self.splitter = wx.SplitterWindow(panel, style=wx.SP_LIVE_UPDATE)
+
+        # Editor (Scintilla)
+        self.editor = wx.stc.StyledTextCtrl(self.splitter)
+        self.editor.SetLexer(wx.stc.STC_LEX_MARKDOWN)
+        self.editor.SetMarginType(0, wx.stc.STC_MARGIN_NUMBER)
+        self.editor.SetMarginWidth(0, 40)
+        self.editor.SetTabWidth(4)
+        self.editor.SetUseTabs(False)
+        self.editor.SetWrapMode(wx.stc.STC_WRAP_WORD)
+        font = wx.Font(12, wx.FONTFAMILY_TELETYPE, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL, faceName="Menlo")
+        self.editor.StyleSetFont(wx.stc.STC_STYLE_DEFAULT, font)
+        self.editor.StyleClearAll()
+        if self.filename.exists():
+            self.editor.SetText(self.filename.read_text())
+        self.editor.Bind(wx.stc.EVT_STC_MODIFIED, self.on_editor_modified)
+
+        # Enable drag & drop for images
+        self.editor.SetDropTarget(ImageDropTarget(self))
+
+        # Preview
+        self.browser = wx.html2.WebView.New(self.splitter)
+
+        self.splitter.SplitVertically(self.editor, self.browser, 400)
+        self.splitter.SetMinimumPaneSize(200)
+
+        main_sizer.Add(self.splitter, 1, wx.EXPAND | wx.ALL, 3)
 
         panel.SetSizer(main_sizer)
         self.CreateStatusBar()
         self.Show()
 
+    def _apply_dark_to_editor(self):
+        """Style the Scintilla editor for dark mode."""
+        self.editor.StyleSetBackground(wx.stc.STC_STYLE_DEFAULT, wx.Colour(13, 17, 23))
+        self.editor.StyleSetForeground(wx.stc.STC_STYLE_DEFAULT, wx.Colour(201, 209, 217))
+        self.editor.StyleClearAll()
+        self.editor.SetCaretForeground(wx.Colour(201, 209, 217))
+        # Markdown heading styles
+        for style_num in range(wx.stc.STC_MARKDOWN_HEADER1, wx.stc.STC_MARKDOWN_HEADER6 + 1):
+            self.editor.StyleSetForeground(style_num, wx.Colour(88, 166, 255))
+            self.editor.StyleSetBold(style_num, True)
+        # Code
+        self.editor.StyleSetForeground(wx.stc.STC_MARKDOWN_CODE, wx.Colour(230, 237, 243))
+        self.editor.StyleSetBackground(wx.stc.STC_MARKDOWN_CODE, wx.Colour(33, 38, 45))
+        self.editor.StyleSetForeground(wx.stc.STC_MARKDOWN_CODE2, wx.Colour(230, 237, 243))
+        self.editor.StyleSetBackground(wx.stc.STC_MARKDOWN_CODE2, wx.Colour(33, 38, 45))
+        # Line numbers
+        self.editor.StyleSetBackground(wx.stc.STC_STYLE_LINENUMBER, wx.Colour(22, 27, 34))
+        self.editor.StyleSetForeground(wx.stc.STC_STYLE_LINENUMBER, wx.Colour(110, 118, 129))
+
+    # ── Preview ───────────────────────────────────────────────────────
+
     def update_preview(self):
         if self.filename.exists():
             content = self.filename.read_text()
-            html = markdown2.markdown(content)
-            css = DARK_CSS if self.dark else LIGHT_CSS
-            styled_html = f"""<html><head><style>{css}</style></head><body>{html}</body></html>"""
+            html = markdown2.markdown(content, extras=["tables", "fenced-code-blocks"])
+            custom_css = load_custom_css()
+            css = custom_css or (DARK_CSS if self.dark else LIGHT_CSS)
+            styled_html = f"<html><head><style>{css}</style></head><body>{html}</body></html>"
             self.browser.SetPage(styled_html, "")
 
-    # ── Event handlers ────────────────────────────────────────────────
+    # ── Event Handlers ────────────────────────────────────────────────
+
+    def on_editor_modified(self, event):
+        mod_type = event.GetModificationType()
+        if mod_type & (wx.stc.STC_MOD_INSERTTEXT | wx.stc.STC_MOD_DELETETEXT):
+            self._autosave_dirty = True
+
+    def on_new(self, event):
+        dlg = wx.TextEntryDialog(self, "Enter report title:", "New Report")
+        if dlg.ShowModal() == wx.ID_OK:
+            self.sm.init(dlg.GetValue())
+            self.editor.SetText(self.filename.read_text())
+            self.update_preview()
+        dlg.Destroy()
+
+    def on_open(self, event):
+        dlg = wx.FileDialog(self, "Open Markdown", wildcard="Markdown (*.md)|*.md",
+                            style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST)
+        if dlg.ShowModal() == wx.ID_OK:
+            self.filename = Path(dlg.GetPath())
+            self.sm = Showmaster(self.filename)
+            self.editor.SetText(self.filename.read_text())
+            self.update_preview()
+            self.SetTitle(f"Showmaster — {self.filename.name}")
+        dlg.Destroy()
+
+    def on_save(self, event):
+        self._save_editor_to_file()
+        self.update_preview()
+        self.StatusBar.SetStatusText(f"Saved {self.filename}")
 
     def on_add_note(self, event):
         text = self.note_text.GetValue()
         if text:
             self.sm.note(text)
             self.note_text.Clear()
+            self.editor.SetText(self.filename.read_text())
             self.update_preview()
 
     def on_run_exec(self, event):
@@ -311,6 +443,7 @@ class ShowmasterFrame(wx.Frame):
         if cmd:
             self.sm.exec(cmd)
             self.exec_text.Clear()
+            self.editor.SetText(self.filename.read_text())
             self.update_preview()
 
     def on_run_image(self, event):
@@ -318,18 +451,23 @@ class ShowmasterFrame(wx.Frame):
         if cmd:
             self.sm.image(cmd)
             self.exec_text.Clear()
+            self.editor.SetText(self.filename.read_text())
             self.update_preview()
 
     def on_pop(self, event):
         self.sm.pop()
+        self.editor.SetText(self.filename.read_text())
         self.update_preview()
 
     def on_finalize(self, event):
+        self._save_editor_to_file()
         res = self.sm.finalize()
-        wx.MessageBox(res, "Finalize", wx.OK | wx.ICON_INFORMATION)
+        self.editor.SetText(self.filename.read_text())
         self.update_preview()
+        wx.MessageBox(res, "Finalize", wx.OK | wx.ICON_INFORMATION)
 
     def on_export_pdf(self, event):
+        self._save_editor_to_file()
         msg = self.sm.export_pdf()
         wx.MessageBox(msg, "Export PDF", wx.OK | wx.ICON_INFORMATION)
 
@@ -338,22 +476,28 @@ class ShowmasterFrame(wx.Frame):
         if key:
             dlg = wx.TextEntryDialog(self, "Enter report title:", f"New {key} Report")
             if dlg.ShowModal() == wx.ID_OK:
-                title = dlg.GetValue()
                 from showmaster.templates import apply_template
-                apply_template(key, self.filename, title=title)
-                self.sm = Showmaster(self.filename)  # Reinit
+                apply_template(key, self.filename, title=dlg.GetValue())
+                self.sm = Showmaster(self.filename)
+                self.editor.SetText(self.filename.read_text())
                 self.update_preview()
                 self.StatusBar.SetStatusText(f"Template '{key}' applied.")
             dlg.Destroy()
+
+    def on_toggle_editor(self, event):
+        if self.editor_toggle.IsChecked():
+            self.splitter.SplitVertically(self.editor, self.browser, 400)
+        else:
+            self.splitter.Unsplit(self.editor)
 
     def on_browser_snap(self, event):
         url = self.url_text.GetValue()
         if url:
             self.StatusBar.SetStatusText(f"Capturing {url}...")
-
             def _task():
                 try:
                     res = self.sm.browser_snap(url)
+                    wx.CallAfter(self.editor.SetText, self.filename.read_text())
                     wx.CallAfter(self.update_preview)
                     wx.CallAfter(self.StatusBar.SetStatusText, res)
                 except Exception as e:
@@ -371,29 +515,20 @@ class ShowmasterFrame(wx.Frame):
         self.StatusBar.SetStatusText(res)
         self.start_vid_btn.Enable()
         self.stop_vid_btn.Disable()
+        self.editor.SetText(self.filename.read_text())
         self.update_preview()
 
     def on_about(self, event):
         about_text = (
             f"Showmaster v{CURRENT_VERSION}\n"
-            "A comprehensive documentation and demo tool.\n\n"
+            "Documentation & demo tool with live editor.\n\n"
             "By Mohammed Maniruzzaman, PhD\n"
-            "License: MIT\n\n"
-            "Third-Party Components:\n"
-            "- wxPython (LGPL)\n"
-            "- Playwright (Apache 2.0)\n"
-            "- markdown2 (MIT)\n"
-            "- httpx (BSD 3-Clause)\n"
-            "- mss (MIT)\n"
-            "- opencv-python (Apache 2.0)\n"
-            "- numpy (BSD 3-Clause)"
+            "License: MIT"
         )
         wx.MessageBox(about_text, "About Showmaster", wx.OK | wx.ICON_INFORMATION)
 
     def on_guide(self, event):
-        import subprocess
-        import sys
-        import os
+        import subprocess, sys, os
         guide_path = self.get_resource_path("USER_GUIDE.md")
         if guide_path.exists():
             if sys.platform == "darwin":
@@ -406,9 +541,35 @@ class ShowmasterFrame(wx.Frame):
             wx.MessageBox(f"User Guide not found at {guide_path}", "Error", wx.OK | wx.ICON_ERROR)
 
     def on_open_browser(self, event):
-        import subprocess
-        import sys
+        import subprocess, sys
         subprocess.Popen([sys.executable, "-m", "browserpilot.gui"])
+
+    def embed_image(self, path):
+        """Embed an image file into the report (called by drag & drop)."""
+        import shutil
+        src = Path(path)
+        if src.exists() and src.suffix.lower() in ('.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp'):
+            dest = self.filename.parent / src.name
+            if src.absolute() != dest.absolute():
+                shutil.copy(src, dest)
+            with self.filename.open("a") as f:
+                f.write(f"\n![{src.name}]({src.name})\n\n")
+            self.editor.SetText(self.filename.read_text())
+            self.update_preview()
+            self.StatusBar.SetStatusText(f"Embedded image: {src.name}")
+
+
+class ImageDropTarget(wx.FileDropTarget):
+    """Drag & drop handler for image files."""
+
+    def __init__(self, frame):
+        super().__init__()
+        self.frame = frame
+
+    def OnDropFiles(self, x, y, filenames):
+        for f in filenames:
+            self.frame.embed_image(f)
+        return True
 
 
 def main():

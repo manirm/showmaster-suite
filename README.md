@@ -1,98 +1,205 @@
-# Showmaster & BrowserPilot: The Ultimate Documentation Suite
+<div align="center">
 
-An integrated suite of tools for software demonstration, browser automation, and high-quality reporting, built for developers and AI agents.
+# Showmaster Suite
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python: 3.12+](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/)
+**Professional documentation tool + AI-powered browser automation**
+
+[![Build](https://github.com/manirm/showmaster-suite/actions/workflows/release.yml/badge.svg)](https://github.com/manirm/showmaster-suite/actions/workflows/release.yml)
+[![Tests](https://github.com/manirm/showmaster-suite/actions/workflows/test.yml/badge.svg)](https://github.com/manirm/showmaster-suite/actions/workflows/test.yml)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/version-0.4.0-orange.svg)](https://github.com/manirm/showmaster-suite/releases)
+
+*Create rich documentation, automate the browser, and capture everything — all from one toolkit.*
+
+</div>
 
 ---
 
-## 🌟 Overview
+## ✨ Features
 
-This project consists of two core applications designed to work together:
+### 🖊️ Showmaster — Documentation & Demo Tool
 
-1.  **Showmaster**: A documentation director that records your workflow into professional Markdown reports. It supports shell command logging, image capture, **video recording**, and **web snapshots**.
-2.  **BrowserPilot**: A persistent, **AI-powered browser automation** tool. It uses Playwright to control a real browser and **Local Ollama** to provide natural language interaction (e.g., "Click the login button").
+- **Split-pane editor** — Markdown editor with syntax highlighting + live HTML preview
+- **Command capture** — Run commands and auto-embed their output into reports
+- **Screen recording** — Record screen video directly into your documentation
+- **Web capture** — Screenshot any URL and embed it inline
+- **PDF export** — Export polished reports as PDF or styled HTML
+- **4 built-in templates** — Bug report, feature demo, API walkthrough, project setup
+- **Dark mode** — Auto-detects OS theme (macOS, Windows)
+- **Drag & drop** — Drop images directly into the editor to embed
+- **Auto-save** — Never lose work with 30-second auto-save
+
+### 🤖 BrowserPilot — AI Browser Automation
+
+- **Persistent sessions** — Browser state (cookies, tabs, history) persists between commands
+- **AI-powered interaction** — Click elements by natural language description
+- **Conversational AI** — Ask questions about page content with multi-turn memory
+- **Action recording** — Record browser actions as JSON scripts, replay at any speed
+- **Form automation** — Fill fields, select dropdowns, type with keystroke simulation
+- **PDF capture** — Save any webpage as PDF with native Playwright rendering
+- **Wait strategies** — Wait for selectors, network idle, URL patterns
+- **Cookie management** — Export and import cookies for session sharing
 
 ---
 
-## 🎨 Showmaster (Recording & Documentation)
+## 🚀 Quick Start
 
-Showmaster lets you build a "live" documentation of your work.
-
-### Features
--   **Notes & Executive Summaries**: Record descriptions of your process.
--   **Terminal Integration**: Log shell commands and their exact outputs.
--   **Automatic Image Embedding**: Run a command (e.g., a script that generates a plot) and Showmaster embeds it instantly.
--   **Video Capturing (macOS Native)**: Record your screen for complex demos.
--   **Professional Finalization**: Automatic Table of Contents and polished formatting.
-
-### Quick Start
 ```bash
-# GUI
-uv run showmaster-gui
-
-# CLI
-showmaster init demo.md "My Project Demo"
-showmaster note demo.md "Adding a new feature"
-showmaster exec demo.md "ls -R"
-```
-
----
-
-## 🤖 BrowserPilot (Automation & AI)
-
-BrowserPilot is a persistent browser session that you control via CLI, GUI, or AI.
-
-### Features
--   **Persistent CDP Session**: Start a browser once and interact with it across many turns.
--   **AI Interaction**: Use **Local Ollama** to find elements or query the page text in plain English.
--   **Playwright Backend**: Reliable and fast interaction with any modern web page.
-
-### Quick Start
-```bash
-# Navigate (browser launches automatically, state persists between commands)
-browserpilot navigate "https://github.com/trending"
-
-# AI-powered interaction
-browserpilot ai-click "See the top repositories"
-browserpilot ai-query "What is the most popular repository today?"
-
-# Take a screenshot
-browserpilot snap trending.png
-
-# Run in headful (visible) mode
-browserpilot --headful navigate "https://example.com"
-
-# Clear saved browser state (cookies, history)
-browserpilot reset
-```
-
----
-
-## 🚀 Installation & System Requirements
-
-### Prerequisites
--   **Python 3.12+**
--   **uv** (recommended): `curl -LsSf https://astral.sh/uv/install.sh | sh`
--   **Local Ollama**: Install from [ollama.ai](https://ollama.ai) and run `ollama pull llama3`.
--   **FFmpeg**: For video processing features.
-
-### Installation
-```bash
-# Sync dependencies
+# Clone and install
+git clone https://github.com/manirm/showmaster-suite.git
+cd showmaster-suite
 uv sync
+uv run playwright install chromium
 
-# Install Playwright browsers
+# Create a report
+uv run showmaster init "My Demo"
+uv run showmaster exec "echo Hello!"
+uv run showmaster finalize
+
+# Launch the GUI
+uv run showmaster-gui
+```
+
+---
+
+## 📦 Installation
+
+### From Source (Development)
+
+```bash
+git clone https://github.com/manirm/showmaster-suite.git
+cd showmaster-suite
+uv sync                     # Core dependencies
+uv sync --extra dev         # + pytest for testing
+uv sync --extra pdf         # + weasyprint for PDF export
 uv run playwright install chromium
 ```
 
+### Desktop Launchers (No Terminal)
+
+Double-click these files to launch the GUI:
+
+| Platform | Showmaster | BrowserPilot |
+|----------|-----------|--------------|
+| macOS | `launchers/Showmaster.command` | `launchers/BrowserPilot.command` |
+| Windows | `launchers/Showmaster.bat` | `launchers/BrowserPilot.bat` |
+
 ---
 
-## 📖 Comprehensive Documentation
-For a full breakdown of features and advanced usage, please refer to the [**User Guide**](USER_GUIDE.md).
+## 🎯 CLI Usage
+
+### Showmaster
+
+```bash
+showmaster init "Project Report"           # Start a new report
+showmaster note "Setup complete"           # Add a note
+showmaster exec "pytest -v"                # Run & capture command output
+showmaster image "python chart.py"         # Run & embed output image
+showmaster browser-snap https://github.com # Screenshot a webpage
+showmaster finalize                        # Add TOC & footer
+showmaster export-pdf                      # Export as PDF
+showmaster list-templates                  # Show available templates
+showmaster init-template bug_report "Bug"  # Use a template
+```
+
+### BrowserPilot
+
+```bash
+browserpilot navigate https://example.com     # Open URL
+browserpilot snap screenshot.png              # Screenshot
+browserpilot save-pdf page.pdf                # Save as PDF
+browserpilot fill "#email" "me@test.com"      # Fill form field
+browserpilot type-text "#search" "hello"      # Type with keystrokes
+browserpilot click-el "button.submit"         # Click element
+browserpilot wait-for "#loaded"               # Wait for element
+browserpilot wait-idle                        # Wait for network idle
+browserpilot execute-js "document.title"      # Run JavaScript
+browserpilot ai-click "the login button"      # AI-powered click
+browserpilot ai-query "What is this page?"    # Ask AI about the page
+browserpilot export-cookies cookies.json      # Export cookies
+browserpilot import-cookies cookies.json      # Import cookies
+browserpilot replay test.json --speed 2       # Replay action script
+browserpilot create-script workflow.json      # Create script interactively
+```
 
 ---
 
-## ⚖️ License
-This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
+## ⌨️ Keyboard Shortcuts
+
+| Shortcut | Showmaster | BrowserPilot |
+|----------|-----------|--------------|
+| `Ctrl+S` | Save | — |
+| `Ctrl+E` | Toggle editor | — |
+| `Ctrl+Shift+F` | Finalize | — |
+| `Ctrl+Shift+P` | Export PDF | — |
+| `Ctrl+L` | — | Navigate |
+| `Ctrl+J` | — | Execute JS |
+| `Ctrl+Shift+S` | — | Screenshot |
+| `Ctrl+R` | Start recording | — |
+| `F1` | User Guide | User Guide |
+| `Ctrl+Q` | Quit | Quit |
+
+---
+
+## 🎨 Themes
+
+Dark mode auto-detects your OS theme. Override in `~/.showmaster_settings.json`:
+
+```json
+{ "dark_mode": "dark" }
+```
+
+Custom CSS: create `~/.showmaster/themes/custom.css` for custom preview styling.
+
+---
+
+## 🧪 Testing
+
+```bash
+uv sync --extra dev
+uv run pytest tests/ -v         # 44 tests (unit + browser integration)
+```
+
+---
+
+## 🏗️ Project Structure
+
+```
+showmaster-suite/
+├── src/
+│   ├── showmaster/          # Documentation tool
+│   │   ├── core.py          # Report engine
+│   │   ├── gui.py           # Split-pane GUI
+│   │   ├── cli.py           # CLI interface
+│   │   └── templates.py     # Report templates
+│   ├── browserpilot/        # Browser automation
+│   │   ├── core.py          # Playwright engine
+│   │   ├── gui.py           # Control center GUI
+│   │   ├── cli.py           # CLI interface
+│   │   ├── recorder.py      # Action recording/playback
+│   │   └── memory.py        # AI conversation memory
+│   └── common/
+│       └── settings.py      # Shared settings & dark mode
+├── tests/                   # pytest test suite
+├── launchers/               # Desktop launchers
+├── .github/workflows/       # CI/CD pipelines
+├── USER_GUIDE.md            # Comprehensive user guide
+└── pyproject.toml           # Package config
+```
+
+---
+
+## 📄 License
+
+MIT License — see [LICENSE](LICENSE) for details.
+
+**Author:** Mohammed Maniruzzaman, PhD
+
+---
+
+<div align="center">
+
+*Built with [Playwright](https://playwright.dev/) · [wxPython](https://wxpython.org/) · [Ollama](https://ollama.com/)*
+
+</div>

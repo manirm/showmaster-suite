@@ -63,7 +63,7 @@ def is_dark_mode():
 # ── Auto-Update Check ─────────────────────────────────────────────────
 
 GITHUB_REPO = "manirm/showmaster-suite"
-CURRENT_VERSION = "0.3.0"
+CURRENT_VERSION = "0.5.0"
 
 
 def check_for_updates():
