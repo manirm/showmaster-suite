@@ -71,6 +71,13 @@ def ai_query(ctx, question):
 
 @main_cli.command()
 @click.pass_context
+def ai_clear(ctx):
+    """Clear AI conversation history."""
+    ctx.obj["bp"].ai_clear()
+
+
+@main_cli.command()
+@click.pass_context
 def reset(ctx):
     """Clear the persistent browser profile (cookies, history, etc.)."""
     ctx.obj["bp"].reset()

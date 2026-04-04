@@ -6,6 +6,33 @@ import json
 import threading
 from pathlib import Path
 from browserpilot.core import BrowserPilot
+from common.settings import is_dark_mode, check_for_updates, CURRENT_VERSION
+
+
+# ── Dark Theme Colours ────────────────────────────────────────────────
+
+DARK_BG = wx.Colour(22, 27, 34)
+DARK_FG = wx.Colour(201, 209, 217)
+DARK_PANEL = wx.Colour(13, 17, 23)
+DARK_INPUT = wx.Colour(33, 38, 45)
+DARK_ACCENT = wx.Colour(88, 166, 255)
+
+
+def apply_dark_theme(widget):
+    """Recursively apply dark theme to a widget tree."""
+    if isinstance(widget, (wx.TextCtrl, wx.ComboBox)):
+        widget.SetBackgroundColour(DARK_INPUT)
+        widget.SetForegroundColour(DARK_FG)
+    elif isinstance(widget, wx.StaticText):
+        widget.SetForegroundColour(DARK_FG)
+    elif isinstance(widget, wx.Panel):
+        widget.SetBackgroundColour(DARK_PANEL)
+    elif isinstance(widget, wx.Frame):
+        widget.SetBackgroundColour(DARK_BG)
+
+    if hasattr(widget, 'GetChildren'):
+        for child in widget.GetChildren():
+            apply_dark_theme(child)
 
 
 class BrowserPilotFrame(wx.Frame):
@@ -13,11 +40,29 @@ class BrowserPilotFrame(wx.Frame):
         super().__init__(
             None, title="BrowserPilot Control Center", size=(800, 700)
         )
-        self.bp = BrowserPilot(headless=False)  # GUI defaults to headful
+        self.bp = BrowserPilot(headless=False)
+        self.dark = is_dark_mode()
 
         self.init_menubar()
         self.init_icon()
         self.init_ui()
+
+        if self.dark:
+            apply_dark_theme(self)
+            self.Refresh()
+
+        # Check for updates
+        self._check_updates()
+
+    def _check_updates(self):
+        def _task():
+            has_update, latest = check_for_updates()
+            if has_update:
+                wx.CallAfter(
+                    self.StatusBar.SetStatusText,
+                    f"Update available: v{latest} (current: v{CURRENT_VERSION})"
+                )
+        threading.Thread(target=_task, daemon=True).start()
 
     # ── Resource path resolution ──────────────────────────────────────
 
@@ -61,20 +106,40 @@ class BrowserPilotFrame(wx.Frame):
         menubar = wx.MenuBar()
 
         file_menu = wx.Menu()
-        exit_item = file_menu.Append(wx.ID_EXIT, "E&xit")
+        exit_item = file_menu.Append(wx.ID_EXIT, "E&xit\tCtrl+Q")
         menubar.Append(file_menu, "&File")
 
         edit_menu = wx.Menu()
         prefs_item = edit_menu.Append(wx.ID_PREFERENCES, "&Preferences")
         menubar.Append(edit_menu, "&Edit")
 
+        tools_menu = wx.Menu()
+        nav_item = tools_menu.Append(wx.ID_ANY, "&Navigate\tCtrl+L")
+        snap_item = tools_menu.Append(wx.ID_ANY, "&Screenshot\tCtrl+Shift+S")
+        js_item = tools_menu.Append(wx.ID_ANY, "Execute &JS\tCtrl+J")
+        tools_menu.AppendSeparator()
+        ai_click_item = tools_menu.Append(wx.ID_ANY, "AI Cli&ck\tCtrl+Shift+C")
+        ai_query_item = tools_menu.Append(wx.ID_ANY, "AI &Query\tCtrl+Shift+Q")
+        ai_clear_item = tools_menu.Append(wx.ID_ANY, "Clear AI &History")
+        tools_menu.AppendSeparator()
+        reset_item = tools_menu.Append(wx.ID_ANY, "&Reset Profile")
+        menubar.Append(tools_menu, "&Tools")
+
         help_menu = wx.Menu()
-        guide_item = help_menu.Append(wx.ID_ANY, "User &Guide")
+        guide_item = help_menu.Append(wx.ID_ANY, "User &Guide\tF1")
         about_item = help_menu.Append(wx.ID_ABOUT, "&About")
         menubar.Append(help_menu, "&Help")
 
         self.SetMenuBar(menubar)
+
         self.Bind(wx.EVT_MENU, lambda e: self.Close(), exit_item)
+        self.Bind(wx.EVT_MENU, self.on_navigate, nav_item)
+        self.Bind(wx.EVT_MENU, self.on_screenshot, snap_item)
+        self.Bind(wx.EVT_MENU, self.on_js, js_item)
+        self.Bind(wx.EVT_MENU, self.on_ai_click, ai_click_item)
+        self.Bind(wx.EVT_MENU, self.on_ai_query, ai_query_item)
+        self.Bind(wx.EVT_MENU, self.on_ai_clear, ai_clear_item)
+        self.Bind(wx.EVT_MENU, self.on_reset, reset_item)
         self.Bind(wx.EVT_MENU, self.on_guide, guide_item)
         self.Bind(wx.EVT_MENU, self.on_about, about_item)
 
@@ -106,6 +171,10 @@ class BrowserPilotFrame(wx.Frame):
         reset_btn = wx.Button(panel, label="Reset Profile")
         reset_btn.Bind(wx.EVT_BUTTON, self.on_reset)
         action_sizer.Add(reset_btn, 1, wx.EXPAND)
+
+        ai_clear_btn = wx.Button(panel, label="Clear AI History")
+        ai_clear_btn.Bind(wx.EVT_BUTTON, self.on_ai_clear)
+        action_sizer.Add(ai_clear_btn, 1, wx.EXPAND)
 
         sizer.Add(action_sizer, 0, wx.EXPAND | wx.ALL, 20)
 
@@ -201,13 +270,17 @@ class BrowserPilotFrame(wx.Frame):
             self._run_async(f"AI query: {q}", lambda: self.bp.ai_query(q))
         dlg.Destroy()
 
+    def on_ai_clear(self, event):
+        self.bp.ai_clear()
+        self.log("AI conversation history cleared.")
+
     def on_reset(self, event):
         self.bp.reset()
         self.log("Browser profile cleared.")
 
     def on_about(self, event):
         about_text = (
-            "BrowserPilot v0.3.0\n"
+            f"BrowserPilot v{CURRENT_VERSION}\n"
             "AI-powered browser automation engine.\n\n"
             "By Mohammed Maniruzzaman, PhD\n"
             "License: MIT\n\n"

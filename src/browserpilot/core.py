@@ -160,6 +160,8 @@ class BrowserPilot:
         return self._run_with_page(_task)
 
     def ai_query(self, prompt):
+        from browserpilot.memory import get_context_messages, add_turn
+
         def _task(page):
             text_content = page.evaluate("document.body.innerText")
 
@@ -172,18 +174,33 @@ class BrowserPilot:
             settings = load_settings()
             model = settings.get("ollama_model", "llama3")
 
-            response = ollama.chat(
-                model=model,
-                messages=[
-                    {"role": "user", "content": full_prompt},
-                ],
-            )
+            # Build messages with conversation history
+            messages = [
+                {
+                    "role": "system",
+                    "content": "You are a helpful browser assistant. "
+                               "Answer questions about the current web page.",
+                }
+            ]
+            messages.extend(get_context_messages())
+            messages.append({"role": "user", "content": full_prompt})
+
+            response = ollama.chat(model=model, messages=messages)
 
             answer = response["message"]["content"]
+            # Save this turn to conversation memory
+            add_turn(full_prompt, answer)
             print(f"AI Answer: {answer}")
             return answer
 
         return self._run_with_page(_task)
+
+    def ai_clear(self):
+        """Clear AI conversation history."""
+        from browserpilot.memory import clear_conversation
+        result = clear_conversation()
+        print(result)
+        return result
 
     def reset(self):
         """Clear the persistent browser profile."""

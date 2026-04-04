@@ -84,5 +84,44 @@ def record(sm, duration):
     msg = sm.stop_record()
     click.echo(msg)
 
+
+@cli.command(name="list-templates")
+def list_templates_cmd():
+    """List all available report templates."""
+    from showmaster.templates import list_templates
+    templates = list_templates()
+    click.echo("Available templates:\n")
+    for key, name, desc in templates:
+        click.echo(f"  {key:<20} {name}: {desc}")
+
+
+@cli.command(name="init-template")
+@click.argument('template')
+@click.argument('title')
+@click.option('--file', '-f', default='demo.md', help='Target markdown file.')
+@click.option('--author', default='', help='Author name.')
+def init_template(template, title, file, author):
+    """Initialize a report from a template.
+
+    TEMPLATE is one of: bug_report, feature_demo, api_walkthrough, project_setup
+    """
+    from showmaster.templates import apply_template
+    try:
+        msg = apply_template(template, file, title=title, author=author)
+        click.echo(msg)
+    except ValueError as e:
+        click.echo(f"Error: {e}", err=True)
+
+
+@cli.command(name="export-pdf")
+@click.option('--output', '-o', default=None, help='Output PDF path.')
+@click.pass_obj
+def export_pdf(sm, output):
+    """Export the report as PDF (requires weasyprint) or HTML."""
+    msg = sm.export_pdf(output)
+    click.echo(msg)
+
+
 if __name__ == '__main__':
     cli()
+

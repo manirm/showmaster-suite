@@ -196,3 +196,76 @@ class Showmaster:
             
         self.filepath.write_text(new_content)
         return "Report finalized with TOC and License notice."
+
+    def export_pdf(self, output_path=None):
+        """Export the report as a PDF file.
+
+        Requires: pip install weasyprint   (optional dependency)
+        Falls back to a simple HTML file if weasyprint is not installed.
+        """
+        import markdown2
+
+        if not self.filepath.exists():
+            return "No report to export."
+
+        if output_path is None:
+            output_path = self.filepath.with_suffix(".pdf")
+
+        content = self.filepath.read_text()
+        html_body = markdown2.markdown(content)
+        styled_html = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+    @page {{ margin: 2cm; }}
+    body {{
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                     Helvetica, Arial, sans-serif;
+        line-height: 1.6;
+        color: #24292e;
+        max-width: 700px;
+        margin: 0 auto;
+        font-size: 11pt;
+    }}
+    pre {{
+        background: #f6f8fa;
+        padding: 12px;
+        border-radius: 6px;
+        overflow-x: auto;
+        font-size: 9pt;
+        font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+    }}
+    code {{
+        background: rgba(27,31,35,0.05);
+        padding: 0.2em 0.4em;
+        border-radius: 3px;
+        font-size: 85%;
+    }}
+    img {{ max-width: 100%; }}
+    h1 {{ border-bottom: 2px solid #e1e4e8; padding-bottom: 0.3em; }}
+    h2 {{ border-bottom: 1px solid #e1e4e8; padding-bottom: 0.3em; }}
+    table {{ border-collapse: collapse; width: 100%; }}
+    th, td {{ border: 1px solid #dfe2e5; padding: 8px; text-align: left; }}
+    th {{ background: #f6f8fa; }}
+    blockquote {{
+        padding: 0 1em;
+        color: #6a737d;
+        border-left: 0.25em solid #dfe2e1;
+    }}
+    hr {{ height: 0.25em; background-color: #e1e4e8; border: 0; }}
+</style>
+</head>
+<body>{html_body}</body>
+</html>"""
+
+        try:
+            from weasyprint import HTML
+            HTML(string=styled_html).write_pdf(str(output_path))
+            return f"PDF exported to {output_path}"
+        except ImportError:
+            # Fallback: save as HTML
+            html_path = self.filepath.with_suffix(".html")
+            html_path.write_text(styled_html)
+            return f"weasyprint not installed. HTML exported to {html_path}"
+
