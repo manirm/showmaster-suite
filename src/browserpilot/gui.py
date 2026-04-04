@@ -137,6 +137,7 @@ class BrowserPilotFrame(wx.Frame):
         sizer.Add(self.log_text, 2, wx.EXPAND | wx.ALL, 10)
 
         panel.SetSizer(sizer)
+        self.CreateStatusBar()
         self.Show()
 
     # ── Helpers ────────────────────────────────────────────────────────
@@ -147,6 +148,7 @@ class BrowserPilotFrame(wx.Frame):
     def _run_async(self, label, func):
         """Run a BrowserPilot function in a thread to avoid blocking the UI."""
         self.log(f"{label}...")
+        self.StatusBar.SetStatusText(f"{label}...")
 
         def _task():
             try:
@@ -154,8 +156,10 @@ class BrowserPilotFrame(wx.Frame):
                 if result is not None:
                     wx.CallAfter(self.log, f"Result: {result}")
                 wx.CallAfter(self.log, f"{label} — done.")
+                wx.CallAfter(self.StatusBar.SetStatusText, "Ready")
             except Exception as e:
                 wx.CallAfter(self.log, f"Error: {e}")
+                wx.CallAfter(self.StatusBar.SetStatusText, f"Error: {e}")
 
         threading.Thread(target=_task, daemon=True).start()
 

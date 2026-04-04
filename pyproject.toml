@@ -1,6 +1,6 @@
 [project]
 name = "tools"
-version = "0.1.0"
+version = "0.3.0"
 description = "Showmaster and BrowserPilot tools"
 readme = "README.md"
 authors = [
@@ -22,6 +22,12 @@ dependencies = [
     "zstandard",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-timeout>=2.3",
+]
+
 [project.scripts]
 showmaster = "showmaster.cli:cli"
 browserpilot = "browserpilot.cli:main_cli"
@@ -34,3 +40,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/showmaster", "src/browserpilot", "src/common"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: marks tests that launch a real browser (deselect with '-m \"not slow\"')",
+]
