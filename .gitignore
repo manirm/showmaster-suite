@@ -7,6 +7,9 @@ dist/
 build/
 *.egg-info/
 .browserpilot_session.json
+.bp_server.py
+.bp_error.log
+nuitka-crash-report.xml
 *.mov
 *.mp4
 *.png
@@ -20,3 +23,4 @@ package-lock.json
 demo.md
 *.dist/
 *.build/
+temp_gh_failed.log

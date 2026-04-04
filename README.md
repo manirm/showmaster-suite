@@ -51,16 +51,21 @@ BrowserPilot is a persistent browser session that you control via CLI, GUI, or A
 
 ### Quick Start
 ```bash
-# Start the session
-browserpilot start --headful
+# Navigate (browser launches automatically, state persists between commands)
+browserpilot navigate "https://github.com/trending"
 
 # AI-powered interaction
-browserpilot navigate "https://github.com/trending"
 browserpilot ai-click "See the top repositories"
 browserpilot ai-query "What is the most popular repository today?"
 
-# Stop the session
-browserpilot stop
+# Take a screenshot
+browserpilot snap trending.png
+
+# Run in headful (visible) mode
+browserpilot --headful navigate "https://example.com"
+
+# Clear saved browser state (cookies, history)
+browserpilot reset
 ```
 
 ---

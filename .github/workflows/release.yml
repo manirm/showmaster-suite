@@ -8,6 +8,9 @@ on:
 permissions:
   contents: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     name: Build on ${{ matrix.os }}
@@ -18,10 +21,10 @@ jobs:
         os: [macos-latest, windows-latest, ubuntu-22.04]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
@@ -45,16 +48,14 @@ jobs:
       - name: Install Playwright Browsers
         run: uv run playwright install --with-deps
 
-      # macOS DMG creation handles everything in build.py via hdiutil, no need for brew install create-dmg
-
       - name: Build with Nuitka
-        run: uv run scripts/build.py
+        run: uv run python scripts/build.py
 
       - name: List build artifacts
         run: ls -R dist/
 
       - name: Upload Artifacts
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |

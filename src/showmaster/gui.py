@@ -190,6 +190,7 @@ class ShowmasterFrame(wx.Frame):
         main_sizer.Add(self.browser, 2, wx.EXPAND | wx.ALL, 5)
         
         panel.SetSizer(main_sizer)
+        self.CreateStatusBar()
         self.Show()
 
     def update_preview(self):
@@ -277,11 +278,16 @@ class ShowmasterFrame(wx.Frame):
     def on_browser_snap(self, event):
         url = self.url_text.GetValue()
         if url:
-            busy = wx.BusyInfo(f"Capturing {url}...")
-            res = self.sm.browser_snap(url)
-            del busy
-            self.update_preview()
-            self.StatusBar.SetStatusText(res)
+            self.StatusBar.SetStatusText(f"Capturing {url}...")
+            import threading
+            def _task():
+                try:
+                    res = self.sm.browser_snap(url)
+                    wx.CallAfter(self.update_preview)
+                    wx.CallAfter(self.StatusBar.SetStatusText, res)
+                except Exception as e:
+                    wx.CallAfter(self.StatusBar.SetStatusText, f"Error: {e}")
+            threading.Thread(target=_task, daemon=True).start()
 
     def on_start_record(self, event):
         res = self.sm.start_record()
