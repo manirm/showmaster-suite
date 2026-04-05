@@ -1,6 +1,7 @@
 import subprocess
 import sys
 import os
+import time
 from pathlib import Path
 
 def build_app(module_name, app_name, icon_path):
@@ -52,14 +53,23 @@ def build_app(module_name, app_name, icon_path):
             if os.path.exists(dmg_path):
                 os.remove(dmg_path)
             
-            # Use native hdiutil to ensure headless and reliable DMG generation
-            subprocess.run([
-                "hdiutil", "create",
-                "-volname", app_name,
-                "-srcfolder", f"dist/{app_name}.app",
-                "-ov", "-format", "UDZO",
-                dmg_path
-            ], check=True)
+            # Use native hdiutil with retry to avoid "Resource busy" errors on CI
+            for attempt in range(3):
+                try:
+                    subprocess.run([
+                        "hdiutil", "create",
+                        "-volname", app_name,
+                        "-srcfolder", f"dist/{app_name}.app",
+                        "-ov", "-format", "UDZO",
+                        dmg_path
+                    ], check=True)
+                    break
+                except subprocess.CalledProcessError as e:
+                    if attempt < 2:
+                        print(f"hdiutil failed (attempt {attempt+1}), retrying in 2 seconds...")
+                        time.sleep(2)
+                    else:
+                        raise e
             
     finally:
         # Cleanup the temporary entry script
