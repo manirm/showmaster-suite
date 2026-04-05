@@ -8,8 +8,8 @@ def build_app(module_name, app_name, icon_path):
     
     # Create a temporary main file with the exact App name so Nuitka names the .dmg and .dist correctly
     temp_main = f"{app_name}.py"
-    with open(temp_main, "w") as out_f:
-        with open(f"src/{module_name.replace('.', '/')}/gui.py", "r") as in_f:
+    with open(temp_main, "w", encoding="utf-8") as out_f:
+        with open(f"src/{module_name.replace('.', '/')}/gui.py", "r", encoding="utf-8") as in_f:
             out_f.write(in_f.read())
             
     try:
