@@ -7,10 +7,16 @@ import time
 from pathlib import Path
 from showmaster.core import Showmaster
 from common.settings import (
-    is_dark_mode, check_for_updates, load_settings, save_settings,
+    check_for_updates, load_settings, save_settings,
     set_macos_app_name,
     CURRENT_VERSION,
 )
+from common.gui_utils import (
+    is_dark_mode, apply_dark_theme, get_resource_path, BusyContext
+)
+from common.logger import get_logger
+
+logger = get_logger("gui")
 
 
 # ── Theme CSS ─────────────────────────────────────────────────────────
@@ -37,22 +43,22 @@ th { background: #f6f8fa; }
 DARK_CSS = """
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    padding: 40px; line-height: 1.6; color: #c9d1d9;
-    max-width: 800px; margin: 0 auto; background: #0d1117;
+    padding: 40px; line-height: 1.6; color: #adbac7;
+    max-width: 800px; margin: 0 auto; background: #22272e;
 }
-pre { background: #161b22; padding: 16px; border-radius: 6px; overflow-x: auto; color: #c9d1d9;
-      font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace; }
-code { background: rgba(240,246,252,0.1); padding: 0.2em 0.4em; border-radius: 3px; font-size: 85%; color: #c9d1d9; }
-img { max-width: 100%; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.4); margin: 20px 0; }
-h1 { border-bottom: 1px solid #21262d; padding-bottom: 0.3em; color: #f0f6fc; }
-h2 { border-bottom: 1px solid #21262d; padding-bottom: 0.3em; color: #f0f6fc; }
-h3 { color: #f0f6fc; }
-a { color: #58a6ff; }
-blockquote { padding: 0 1em; color: #8b949e; border-left: 0.25em solid #30363d; margin: 0; }
-hr { height: 0.25em; padding: 0; margin: 24px 0; background-color: #21262d; border: 0; }
+pre { background: #2d333b; padding: 16px; border-radius: 6px; overflow-x: auto; color: #adbac7;
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace; }
+code { background: rgba(99,110,123,0.2); padding: 0.2em 0.4em; border-radius: 3px; font-size: 85%; color: #adbac7; }
+img { max-width: 100%; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); margin: 24px 0; }
+h1 { border-bottom: 1px solid #444c56; padding-bottom: 0.3em; color: #cdd9e5; }
+h2 { border-bottom: 1px solid #444c56; padding-bottom: 0.3em; color: #cdd9e5; }
+h3 { color: #cdd9e5; }
+a { color: #539bf5; }
+blockquote { padding: 0 1em; color: #768390; border-left: 0.25em solid #444c56; margin: 0; }
+hr { height: 0.25em; padding: 0; margin: 24px 0; background-color: #444c56; border: 0; }
 table { border-collapse: collapse; width: 100%; }
-th, td { border: 1px solid #30363d; padding: 8px; text-align: left; color: #c9d1d9; }
-th { background: #161b22; }
+th, td { border: 1px solid #444c56; padding: 8px; text-align: left; color: #adbac7; }
+th { background: #2d333b; }
 """
 
 # ── Dark Mode wxPython Colours ────────────────────────────────────────
@@ -61,22 +67,6 @@ DARK_BG = wx.Colour(22, 27, 34)
 DARK_FG = wx.Colour(201, 209, 217)
 DARK_PANEL = wx.Colour(13, 17, 23)
 DARK_INPUT = wx.Colour(33, 38, 45)
-
-
-def apply_dark_theme(widget):
-    """Recursively apply dark theme to a widget and its children."""
-    if isinstance(widget, (wx.TextCtrl, wx.ComboBox)):
-        widget.SetBackgroundColour(DARK_INPUT)
-        widget.SetForegroundColour(DARK_FG)
-    elif isinstance(widget, wx.StaticText):
-        widget.SetForegroundColour(DARK_FG)
-    elif isinstance(widget, wx.Panel):
-        widget.SetBackgroundColour(DARK_PANEL)
-    elif isinstance(widget, wx.Frame):
-        widget.SetBackgroundColour(DARK_BG)
-    if hasattr(widget, 'GetChildren'):
-        for child in widget.GetChildren():
-            apply_dark_theme(child)
 
 
 def load_custom_css():
@@ -102,7 +92,7 @@ class ShowmasterFrame(wx.Frame):
         self.update_preview()
 
         if self.dark:
-            apply_dark_theme(self)
+            apply_dark_theme(self, DARK_BG, DARK_FG, DARK_PANEL, DARK_INPUT)
             # Style the Scintilla editor for dark mode
             self._apply_dark_to_editor()
             self.Refresh()
@@ -138,7 +128,7 @@ class ShowmasterFrame(wx.Frame):
                 self.update_preview()
                 # Also sync the editor if it wasn't the source of the change
                 if not self._autosave_dirty:
-                    self.editor.SetText(self.filename.read_text())
+                    self.editor.SetText(self.sm.get_text())
 
     def _start_autosave(self):
         """Auto-save every 30 seconds if there are unsaved changes."""
@@ -153,26 +143,15 @@ class ShowmasterFrame(wx.Frame):
 
     def _save_editor_to_file(self):
         content = self.editor.GetText()
-        self.filename.write_text(content)
+        with self.sm._lock:
+            self.filename.write_text(content)
         self._autosave_dirty = False
         self._last_mtime = self.filename.stat().st_mtime
 
     # ── Resource Path ─────────────────────────────────────────────────
 
     def get_resource_path(self, relative_path):
-        import sys
-        dev_path = Path(__file__).parent.parent.parent / relative_path
-        if dev_path.exists():
-            return dev_path
-        base_path = Path(sys.executable).parent
-        standalone_path = base_path / relative_path
-        if standalone_path.exists():
-            return standalone_path
-        if sys.platform == "darwin" and ".app/Contents/MacOS" in str(base_path):
-            resource_path = base_path.parent.parent / "Resources" / relative_path
-            if resource_path.exists():
-                return resource_path
-        return standalone_path
+        return get_resource_path(__file__, relative_path)
 
     def init_icon(self):
         wx.InitAllImageHandlers()
@@ -297,6 +276,12 @@ class ShowmasterFrame(wx.Frame):
 
         # Action buttons
         left_sizer.Add(wx.StaticLine(left_panel), 0, wx.EXPAND | wx.ALL, 5)
+        
+        self.unsafe_cb = wx.CheckBox(left_panel, label="Allow Shell Pipes (Unsafe)")
+        self.unsafe_cb.SetToolTip("Enable this to use pipes (|), redirection (>), or shell built-ins.")
+        self.unsafe_cb.Bind(wx.EVT_CHECKBOX, self.on_toggle_unsafe)
+        left_sizer.Add(self.unsafe_cb, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 5)
+
         btn_sizer = wx.BoxSizer(wx.HORIZONTAL)
         pop_btn = wx.Button(left_panel, label="Undo Last")
         pop_btn.Bind(wx.EVT_BUTTON, self.on_pop)
@@ -338,7 +323,29 @@ class ShowmasterFrame(wx.Frame):
         main_sizer.Add(left_panel, 0, wx.EXPAND)
 
         # ── Center: Split pane (Editor + Preview) ─────────────────────
-        self.splitter = wx.SplitterWindow(panel, style=wx.SP_LIVE_UPDATE)
+        center_panel = wx.Panel(panel)
+        center_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        # Formatting Toolbar
+        fmt_toolbar = wx.BoxSizer(wx.HORIZONTAL)
+        
+        def _fmt_btn(label, hint, func, size=(30, 30), bold=False):
+            btn = wx.Button(center_panel, label=label, size=size)
+            if bold:
+                btn.SetFont(wx.Font(10, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD))
+            btn.SetToolTip(hint)
+            btn.Bind(wx.EVT_BUTTON, func)
+            return btn
+
+        fmt_toolbar.Add(_fmt_btn("B", "Bold", lambda e: self._wrap_selection("**", "**"), bold=True), 0, wx.RIGHT, 2)
+        fmt_toolbar.Add(_fmt_btn("I", "Italic", lambda e: self._wrap_selection("*", "*")), 0, wx.RIGHT, 2)
+        fmt_toolbar.Add(_fmt_btn("H", "Header", lambda e: self._wrap_selection("### ", "")), 0, wx.RIGHT, 2)
+        fmt_toolbar.Add(_fmt_btn("Code", "Code Block", lambda e: self._wrap_selection("```\n", "\n```"), size=(50, 30)), 0, wx.RIGHT, 2)
+        fmt_toolbar.Add(_fmt_btn("Link", "Insert Link", lambda e: self._wrap_selection("[", "](url)"), size=(50, 30)), 0, wx.RIGHT, 2)
+        
+        center_sizer.Add(fmt_toolbar, 0, wx.EXPAND | wx.BOTTOM, 5)
+
+        self.splitter = wx.SplitterWindow(center_panel, style=wx.SP_LIVE_UPDATE)
 
         # Editor (Scintilla)
         self.editor = wx.stc.StyledTextCtrl(self.splitter)
@@ -364,10 +371,15 @@ class ShowmasterFrame(wx.Frame):
         self.splitter.SplitVertically(self.editor, self.browser, 400)
         self.splitter.SetMinimumPaneSize(200)
 
-        main_sizer.Add(self.splitter, 1, wx.EXPAND | wx.ALL, 3)
+        center_sizer.Add(self.splitter, 1, wx.EXPAND)
+        center_panel.SetSizer(center_sizer)
+
+        main_sizer.Add(center_panel, 1, wx.EXPAND | wx.ALL, 3)
 
         panel.SetSizer(main_sizer)
-        self.CreateStatusBar()
+        self.CreateStatusBar(2)
+        self.SetStatusWidths([-1, 150])
+        self.SetStatusText("Safe Mode 🛡️", 1)
         self.Show()
 
     def _apply_dark_to_editor(self):
@@ -393,7 +405,7 @@ class ShowmasterFrame(wx.Frame):
 
     def update_preview(self):
         if self.filename.exists():
-            content = self.filename.read_text()
+            content = self.sm.get_text()
             html = markdown2.markdown(content, extras=["tables", "fenced-code-blocks"])
             # Inline images as base64 data URIs (macOS WebView blocks file://)
             html = self._inline_images(html)
@@ -444,7 +456,7 @@ class ShowmasterFrame(wx.Frame):
         dlg = wx.TextEntryDialog(self, "Enter report title:", "New Report")
         if dlg.ShowModal() == wx.ID_OK:
             self.sm.init(dlg.GetValue())
-            self.editor.SetText(self.filename.read_text())
+            self.editor.SetText(self.sm.get_text())
             self.update_preview()
         dlg.Destroy()
 
@@ -454,7 +466,7 @@ class ShowmasterFrame(wx.Frame):
         if dlg.ShowModal() == wx.ID_OK:
             self.filename = Path(dlg.GetPath())
             self.sm = Showmaster(self.filename)
-            self.editor.SetText(self.filename.read_text())
+            self.editor.SetText(self.sm.get_text())
             self.update_preview()
             self.SetTitle(f"Showmaster — {self.filename.name}")
         dlg.Destroy()
@@ -469,16 +481,25 @@ class ShowmasterFrame(wx.Frame):
         if text:
             self.sm.note(text)
             self.note_text.Clear()
-            self.editor.SetText(self.filename.read_text())
+            self.editor.SetText(self.sm.get_text())
             self.update_preview()
 
     def on_run_exec(self, event):
         cmd = self.exec_text.GetValue()
         if cmd:
-            self.sm.exec(cmd)
+            use_raw = self.unsafe_cb.GetValue()
+            self.StatusBar.SetStatusText(f"Running {'(raw) ' if use_raw else ''}{cmd}...")
+            def _task():
+                with BusyContext(self, [self.exec_text]):
+                    if use_raw:
+                        self.sm.raw_exec(cmd)
+                    else:
+                        self.sm.exec(cmd)
+                    wx.CallAfter(self.editor.SetText, self.filename.read_text())
+                    wx.CallAfter(self.update_preview)
+                    wx.CallAfter(self.StatusBar.SetStatusText, "Ready")
+            threading.Thread(target=_task, daemon=True).start()
             self.exec_text.Clear()
-            self.editor.SetText(self.filename.read_text())
-            self.update_preview()
 
     def on_run_image(self, event):
         cmd = self.exec_text.GetValue()
@@ -495,10 +516,12 @@ class ShowmasterFrame(wx.Frame):
 
     def on_finalize(self, event):
         self._save_editor_to_file()
+        logger.info("Finalizing report...")
         res = self.sm.finalize()
-        self.editor.SetText(self.filename.read_text())
+        self.editor.SetText(self.sm.get_text())
         self.update_preview()
         wx.MessageBox(res, "Finalize", wx.OK | wx.ICON_INFORMATION)
+        logger.info("Report finalized successfully.")
 
     def on_export_pdf(self, event):
         self._save_editor_to_file()
@@ -513,7 +536,7 @@ class ShowmasterFrame(wx.Frame):
                 from showmaster.templates import apply_template
                 apply_template(key, self.filename, title=dlg.GetValue())
                 self.sm = Showmaster(self.filename)
-                self.editor.SetText(self.filename.read_text())
+                self.editor.SetText(self.sm.get_text())
                 self.update_preview()
                 self.StatusBar.SetStatusText(f"Template '{key}' applied.")
             dlg.Destroy()
@@ -529,13 +552,16 @@ class ShowmasterFrame(wx.Frame):
         if url:
             self.StatusBar.SetStatusText(f"Capturing {url}...")
             def _task():
-                try:
-                    res = self.sm.browser_snap(url)
-                    wx.CallAfter(self.editor.SetText, self.filename.read_text())
-                    wx.CallAfter(self.update_preview)
-                    wx.CallAfter(self.StatusBar.SetStatusText, res)
-                except Exception as e:
-                    wx.CallAfter(self.StatusBar.SetStatusText, f"Error: {e}")
+                # Use BusyContext in the UI thread
+                with BusyContext(self, [self.url_text]):
+                    try:
+                        logger.info(f"Starting browser capture for: {url}")
+                        res = self.sm.browser_snap(url)
+                        wx.CallAfter(self.editor.SetText, self.sm.get_text())
+                        wx.CallAfter(self.update_preview)
+                        wx.CallAfter(self.StatusBar.SetStatusText, res)
+                    except Exception as e:
+                        wx.CallAfter(self.StatusBar.SetStatusText, f"Error: {e}")
             threading.Thread(target=_task, daemon=True).start()
 
     def on_start_record(self, event):
@@ -549,8 +575,16 @@ class ShowmasterFrame(wx.Frame):
         self.StatusBar.SetStatusText(res)
         self.start_vid_btn.Enable()
         self.stop_vid_btn.Disable()
-        self.editor.SetText(self.filename.read_text())
+        self.editor.SetText(self.sm.get_text())
         self.update_preview()
+
+    def on_toggle_unsafe(self, event):
+        enabled = self.unsafe_cb.GetValue()
+        self.sm.unsafe_mode = enabled
+        if enabled:
+            self.SetStatusText("⚠️ UNSAFE MODE", 1)
+        else:
+            self.SetStatusText("Safe Mode 🛡️", 1)
 
     def on_about(self, event):
         about_text = (
@@ -574,6 +608,19 @@ class ShowmasterFrame(wx.Frame):
         else:
             wx.MessageBox(f"User Guide not found at {guide_path}", "Error", wx.OK | wx.ICON_ERROR)
 
+    def _wrap_selection(self, prefix, suffix):
+        """Wrap selected text in the editor with the given prefix and suffix."""
+        start, end = self.editor.GetSelection()
+        if start == end:
+            # No selection, just insert at cursor
+            pos = self.editor.GetCurrentPos()
+            self.editor.InsertText(pos, prefix + suffix)
+            self.editor.SetSelection(pos + len(prefix), pos + len(prefix))
+        else:
+            text = self.editor.GetSelectedText()
+            self.editor.ReplaceSelection(prefix + text + suffix)
+        self.editor.SetFocus()
+
     def on_open_browser(self, event):
         import subprocess, sys
         subprocess.Popen([sys.executable, "-m", "browserpilot.gui"])
@@ -586,9 +633,10 @@ class ShowmasterFrame(wx.Frame):
             dest = self.filename.parent / src.name
             if src.absolute() != dest.absolute():
                 shutil.copy(src, dest)
-            with self.filename.open("a") as f:
-                f.write(f"\n![{src.name}]({src.name})\n\n")
-            self.editor.SetText(self.filename.read_text())
+            with self.sm._lock:
+                with self.filename.open("a") as f:
+                    f.write(f"\n![{src.name}]({src.name})\n\n")
+            self.editor.SetText(self.sm.get_text())
             self.update_preview()
             self.StatusBar.SetStatusText(f"Embedded image: {src.name}")
 

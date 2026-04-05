@@ -1,6 +1,6 @@
 # Showmaster Suite — User Guide
 
-> **Version 0.5.0** | By Mohammed Maniruzzaman, PhD | MIT License
+> **Version 0.6.3** | By Mohammed Maniruzzaman, PhD | MIT License
 
 ---
 
@@ -27,7 +27,9 @@
 19. [Desktop Launchers](#desktop-launchers)
 20. [Configuration](#configuration)
 21. [Code Signing & Distribution](#code-signing--distribution)
-22. [Troubleshooting](#troubleshooting)
+22. [Security & Privacy](#security--privacy)
+23. [Audit Logging](#audit-logging)
+24. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -726,6 +728,41 @@ The CI pipeline auto-detects available secrets and only signs when certificates 
 
 ---
 
+## Security & Privacy
+
+Showmaster v0.6.3 introduces **Defense-in-Depth** security measures designed for professional and enterprise environments.
+
+### 1. Robust Sandboxing
+All file operations are restricted to the report's parent directory. We use `os.path.commonpath` to prevent symlink-based path traversal attacks (e.g., `link/../../etc/passwd`).
+
+### 2. Mandatory Unsafe Guard
+The `raw_exec` command (which allows shell pipes `|`, redirection `>`, and sudo) is disabled by default. In the GUI, you must explicitly check **"Allow Shell Pipes (Unsafe)"** to enable these features. Each unsafe execution is logged with a `CRITICAL` audit level.
+
+### 3. Tool Whitelisting
+By default, only a curated set of safe tools (git, ls, python, pip, etc.) are allowed. Attempting to run unauthorized binaries will be blocked unless **Unsafe Mode** is active.
+
+### 4. Automatic API Redaction
+Showmaster automatically detects and redacts common API key patterns (Base64-encoded secrets) from captured command outputs before they are written to the report.
+
+---
+
+## Audit Logging
+
+Comprehensive activity logs are maintained for governance and debugging.
+
+### Location
+- **macOS/Linux**: `~/.showmaster/audit.log`
+- **Windows**: `%USERPROFILE%\.showmaster\audit.log`
+
+### Log Levels
+- `INFO`: Normal activity (captures, notes, saves).
+- `WARNING`: Blocked path traversal attempts or unauthorized tool calls.
+- `CRITICAL`: Manual activation of Unsafe Mode or execution of shell-piped commands.
+
+---
+
+---
+
 ## Troubleshooting
 
 ### "Browser not found"
@@ -764,4 +801,4 @@ rm ~/.browserpilot_profile/.conversation.json  # Clear AI memory
 
 ---
 
-*This guide covers Showmaster Suite v0.4.0. For updates, visit [github.com/manirm/showmaster-suite](https://github.com/manirm/showmaster-suite).*
+*This guide covers Showmaster Suite v0.6.3. For updates, visit [github.com/manirm/showmaster-suite](https://github.com/manirm/showmaster-suite).*

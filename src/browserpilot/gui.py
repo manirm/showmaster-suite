@@ -6,7 +6,8 @@ import json
 import threading
 from pathlib import Path
 from browserpilot.core import BrowserPilot
-from common.settings import is_dark_mode, check_for_updates, set_macos_app_name, CURRENT_VERSION
+from common.settings import check_for_updates, set_macos_app_name, CURRENT_VERSION, load_settings, save_settings
+from common.gui_utils import is_dark_mode, apply_dark_theme, get_resource_path, BusyContext
 
 
 # ── Dark Theme Colours ────────────────────────────────────────────────
@@ -48,7 +49,7 @@ class BrowserPilotFrame(wx.Frame):
         self.init_ui()
 
         if self.dark:
-            apply_dark_theme(self)
+            apply_dark_theme(self, DARK_BG, DARK_FG, DARK_PANEL, DARK_INPUT)
             self.Refresh()
 
         # Check for updates
@@ -67,25 +68,7 @@ class BrowserPilotFrame(wx.Frame):
     # ── Resource path resolution ──────────────────────────────────────
 
     def get_resource_path(self, relative_path):
-        import sys
-
-        dev_path = Path(__file__).parent.parent.parent / relative_path
-        if dev_path.exists():
-            return dev_path
-
-        base_path = Path(sys.executable).parent
-        standalone_path = base_path / relative_path
-        if standalone_path.exists():
-            return standalone_path
-
-        if sys.platform == "darwin" and ".app/Contents/MacOS" in str(base_path):
-            resource_path = (
-                base_path.parent.parent / "Resources" / relative_path
-            )
-            if resource_path.exists():
-                return resource_path
-
-        return standalone_path
+        return get_resource_path(__file__, relative_path)
 
     # ── Initialisation ────────────────────────────────────────────────
 
@@ -155,6 +138,13 @@ class BrowserPilotFrame(wx.Frame):
         nav_btn = wx.Button(panel, label="Navigate")
         nav_btn.Bind(wx.EVT_BUTTON, self.on_navigate)
         nav_sizer.Add(nav_btn, 1, wx.ALL | wx.CENTER, 5)
+        
+        # Headless toggle
+        self.headless_cb = wx.CheckBox(panel, label="Headless")
+        self.headless_cb.SetValue(self.bp.headless)
+        self.headless_cb.Bind(wx.EVT_CHECKBOX, self.on_toggle_headless)
+        nav_sizer.Add(self.headless_cb, 0, wx.ALL | wx.CENTER, 5)
+        
         sizer.Add(nav_sizer, 0, wx.EXPAND)
 
         # ── Actions ───────────────────────────────────────────────────
@@ -220,17 +210,27 @@ class BrowserPilotFrame(wx.Frame):
         self.StatusBar.SetStatusText(f"{label}...")
 
         def _task():
-            try:
-                result = func()
-                if result is not None:
-                    wx.CallAfter(self.log, f"Result: {result}")
-                wx.CallAfter(self.log, f"{label} — done.")
-                wx.CallAfter(self.StatusBar.SetStatusText, "Ready")
-            except Exception as e:
-                wx.CallAfter(self.log, f"Error: {e}")
-                wx.CallAfter(self.StatusBar.SetStatusText, f"Error: {e}")
+            with BusyContext(self):
+                try:
+                    result = func()
+                    if result is not None:
+                        wx.CallAfter(self.log, f"Result: {result}")
+                    wx.CallAfter(self.log, f"{label} — done.")
+                    wx.CallAfter(self.StatusBar.SetStatusText, "Ready")
+                except Exception as e:
+                    wx.CallAfter(self.log, f"Error: {e}")
+                    wx.CallAfter(self.StatusBar.SetStatusText, f"Error: {e}")
 
         threading.Thread(target=_task, daemon=True).start()
+
+    def on_toggle_headless(self, event):
+        headless = self.headless_cb.GetValue()
+        self.bp.headless = headless
+        self.log(f"Headless mode set to: {headless}")
+        # Save to settings
+        settings = load_settings()
+        settings["browser_headless"] = headless
+        save_settings(settings)
 
     # ── Event handlers ────────────────────────────────────────────────
 

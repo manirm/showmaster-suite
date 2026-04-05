@@ -78,44 +78,10 @@ def save_settings(settings):
     SETTINGS_FILE.write_text(json.dumps(settings, indent=4))
 
 
-def is_dark_mode():
-    """Detect whether the OS is currently in dark mode."""
-    settings = load_settings()
-    mode = settings.get("dark_mode", "auto")
-    if mode == "dark":
-        return True
-    if mode == "light":
-        return False
-    # Auto-detect
-    import sys
-    if sys.platform == "darwin":
-        try:
-            import subprocess
-            result = subprocess.run(
-                ["defaults", "read", "-g", "AppleInterfaceStyle"],
-                capture_output=True, text=True,
-            )
-            return "dark" in result.stdout.lower()
-        except Exception:
-            return False
-    elif sys.platform == "win32":
-        try:
-            import winreg
-            key = winreg.OpenKey(
-                winreg.HKEY_CURRENT_USER,
-                r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize",
-            )
-            value, _ = winreg.QueryValueEx(key, "AppsUseLightTheme")
-            return value == 0
-        except Exception:
-            return False
-    return False
-
-
 # ── Auto-Update Check ─────────────────────────────────────────────────
 
 GITHUB_REPO = "manirm/showmaster-suite"
-CURRENT_VERSION = "0.5.1"
+CURRENT_VERSION = "0.6.3"
 
 
 def check_for_updates():

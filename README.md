@@ -8,7 +8,7 @@
 [![Tests](https://github.com/manirm/showmaster-suite/actions/workflows/test.yml/badge.svg)](https://github.com/manirm/showmaster-suite/actions/workflows/test.yml)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-0.4.0-orange.svg)](https://github.com/manirm/showmaster-suite/releases)
+[![Version](https://img.shields.io/badge/version-0.6.3-orange.svg)](https://github.com/manirm/showmaster-suite/releases)
 
 *Create rich documentation, automate the browser, and capture everything — all from one toolkit.*
 
@@ -29,6 +29,9 @@
 - **Dark mode** — Auto-detects OS theme (macOS, Windows)
 - **Drag & drop** — Drop images directly into the editor to embed
 - **Auto-save** — Never lose work with 30-second auto-save
+- **Defense-in-Depth Security** — Tool whitelisting, Base64 redaction, and `commonpath` sandboxing
+- **Thread-Safe Core** — Global file locking for multi-threaded stability
+- **Audit Logging** — Centralized audit logs at `~/.showmaster/audit.log`
 
 ### 🤖 BrowserPilot — AI Browser Automation
 
