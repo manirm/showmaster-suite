@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 def build_app(module_name, app_name, icon_path):
-    print(f"Building {app_name}...")
+    print(f"Building {app_name} (UTF-8 fix active)...")
     
     # Create a temporary main file with the exact App name so Nuitka names the .dmg and .dist correctly
     temp_main = f"{app_name}.py"
