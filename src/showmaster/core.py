@@ -71,7 +71,7 @@ class Showmaster:
         text = re.sub(r'(?i)(api[_-]?key|token|password|secret|bearer)["\s:=]+[\'"]?([a-zA-Z0-9_\-\.\/\+]{1,})[\'"]?', r'\1: [REDACTED]', text)
         return text
 
-    def exec(self, command, shell_executable="bash"):
+    def exec(self, command, shell="bash"):
         """Safe execution of a command (no shell interpolation by default)."""
         import shlex
         try:
